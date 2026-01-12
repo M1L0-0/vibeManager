@@ -1,0 +1,33 @@
+body {
+    margin: 0 0 0 0;
+    height: 100dvh;
+}
+
+#frame {
+    position: relative;
+    display: flex;
+    margin: 0 0 0 0;
+    height: 100dvh;
+    width: 100dvw;
+    background-color: rgba(0, 0, 0, 0.167);
+}
+
+.module {
+    position: absolute;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+    aspect-ratio: 115/100;
+}
+
+.vp-module {
+    position: absolute;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+    aspect-ratio: 115/100;
+    color: aqua;
+}
+
+.ht-module {
+    position: absolute;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+    aspect-ratio: 115/100;
+    background-color: rgba(217, 0, 255, 0.525);
+}
