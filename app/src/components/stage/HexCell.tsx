@@ -12,9 +12,10 @@ import { useEffect, useRef } from 'react';
 interface HexCellProps {
     cell: Cell;
     onClick: (cell: Cell) => void;
+    onRightClick?: (cell: Cell) => void;
 }
 
-export function HexCell({ cell, onClick }: HexCellProps) {
+export function HexCell({ cell, onClick, onRightClick }: HexCellProps) {
     const position = hexToPixel(cell.coord);
     const activityRef = useRef(cell.state.activity);
 
@@ -44,6 +45,10 @@ export function HexCell({ cell, onClick }: HexCellProps) {
         <motion.g
             transform={`translate(${position.x}, ${position.y})`}
             onClick={() => onClick(cell)}
+            onContextMenu={(e) => {
+                e.preventDefault();
+                onRightClick?.(cell);
+            }}
             style={{ cursor: 'pointer' }}
         >
             {/* Cell body */}
@@ -88,13 +93,13 @@ export function HexCell({ cell, onClick }: HexCellProps) {
                     textAnchor="middle"
                     dominantBaseline="middle"
                     fill="#ffffff"
-                    fontSize={24}
+                    fontSize={20}
                     fontWeight="bold"
                     fontFamily="monospace"
                     y={3}
                     style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
-                    {Math.ceil(cell.state.data.timeRemaining)}
+                    {cell.state.data.timeRemaining.toFixed(1)}
                 </text>
             )}
 

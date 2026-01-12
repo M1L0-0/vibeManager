@@ -7,6 +7,7 @@
 
 import { useEffect } from 'react';
 import { Viewport } from '@/components/stage/Viewport';
+import { ToolSelector } from '@/components/ui/ToolSelector';
 import { useGridStore } from '@/store/grid-store';
 import { StemCell } from '@/pams/stem';
 import { TimerCell } from '@/pams/timer';
@@ -45,6 +46,7 @@ export default function Home() {
   return (
     <>
       <CellTicker />
+      <ToolSelector />
       <Viewport />
     </>
   );

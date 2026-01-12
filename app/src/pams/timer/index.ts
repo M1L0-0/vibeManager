@@ -11,6 +11,8 @@ interface TimerData {
     maxTime: number;
     isRunning: boolean;
     lastTick: number;
+    autoRestart: boolean; // Auto-restart when timer completes
+    loop: boolean; // Continuous loop mode
 }
 
 export const TimerCell: PamModule = {
@@ -30,6 +32,8 @@ export const TimerCell: PamModule = {
             maxTime: 3,
             isRunning: false,
             lastTick: Date.now(),
+            autoRestart: false,
+            loop: false,
         } as TimerData;
     },
 
@@ -116,6 +120,22 @@ export const TimerCell: PamModule = {
                     data,
                 },
             });
+
+            // Handle auto-restart and loop modes
+            if (data.autoRestart || data.loop) {
+                console.log(`⏱️ Timer Cell ${cell.id}: Auto-restarting...`);
+                data.timeRemaining = data.maxTime;
+
+                // In loop mode, keep running. In autoRestart mode, stop until clicked again
+                data.isRunning = data.loop;
+
+                useGridStore.getState().updateCell(cell.id, {
+                    state: {
+                        ...cell.state,
+                        data,
+                    },
+                });
+            }
         }
     },
 
