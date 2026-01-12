@@ -10,6 +10,7 @@ import { Viewport } from '@/components/stage/Viewport';
 import { useGridStore } from '@/store/grid-store';
 import { StemCell } from '@/pams/stem';
 import { TimerCell } from '@/pams/timer';
+import { WaveCell } from '@/pams/wave';
 import { getHexesInRadius } from '@/core/grid/hex';
 import { CellTicker } from '@/components/stage/CellTicker';
 
@@ -24,11 +25,16 @@ export default function Home() {
 
     // Replace one cell with a timer cell
     const timerCoord = { q: 2, r: 1 };
+    // Replace another cell with a wave cell
+    const waveCoord = { q: -2, r: 1 };
 
     hexes.forEach((coord) => {
       // If this is the timer position, spawn a timer cell
       if (coord.q === timerCoord.q && coord.r === timerCoord.r) {
         spawnCell(coord, TimerCell.dna, TimerCell);
+      } else if (coord.q === waveCoord.q && coord.r === waveCoord.r) {
+        // Spawn a wave cell
+        spawnCell(coord, WaveCell.dna, WaveCell);
       } else {
         // Otherwise spawn a stem cell
         spawnCell(coord, StemCell.dna, StemCell);

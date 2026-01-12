@@ -122,7 +122,77 @@ export const TimerCell: PamModule = {
     onSignal: (cell: Cell, signal: Signal) => {
         console.log('📨 Timer Cell received signal:', signal);
 
-        // Receiving a signal triggers the same behavior as clicking
+        // Handle wave propagation
+        if (signal.type === 'wave' && signal.waveId) {
+            // Initialize seenSignals if needed
+            if (!cell.state.seenSignals) {
+                cell.state.seenSignals = new Set<string>();
+            }
+
+            // Check if already processed
+            if (cell.state.seenSignals.has(signal.waveId)) {
+                console.log(`🌊 Timer Cell ${cell.id}: Already processed wave ${signal.waveId}`);
+                return;
+            }
+
+            console.log(`🌊 Timer Cell ${cell.id}: Propagating wave ${signal.waveId}`);
+
+            // Mark as seen
+            cell.state.seenSignals.add(signal.waveId);
+
+            // Propagate to neighbors
+            const neighbors = getNeighbors(cell.coord);
+            neighbors.forEach((neighborCoord) => {
+                const neighborId = hexToId(neighborCoord);
+                const neighborCell = useGridStore.getState().getCellAt(neighborCoord);
+
+                if (neighborCell) {
+                    useGridStore.getState().updateCell(neighborId, {
+                        signals: [...neighborCell.signals, signal],
+                    });
+                }
+            });
+
+            // Visual feedback
+            useGridStore.getState().updateCell(cell.id, {
+                state: {
+                    ...cell.state,
+                    activity: 0.8,
+                    seenSignals: cell.state.seenSignals,
+                },
+            });
+
+            // Trigger timer start/pause when wave passes (same as onClick but without calling it)
+            const data = cell.state.data as TimerData;
+            if (data) {
+                // If timer finished, reset it
+                if (data.timeRemaining <= 0) {
+                    data.timeRemaining = data.maxTime;
+                    data.isRunning = false;
+                    data.lastTick = Date.now();
+                } else {
+                    // Toggle pause/resume
+                    data.isRunning = !data.isRunning;
+                    data.lastTick = Date.now();
+                }
+
+                console.log(`⏱️ Timer Cell ${cell.id} triggered by wave: ${data.isRunning ? 'Started/Resumed' : 'Paused'}`);
+
+                // Update cell with new data
+                useGridStore.getState().updateCell(cell.id, {
+                    state: {
+                        ...cell.state,
+                        data,
+                        seenSignals: cell.state.seenSignals,
+                    },
+                });
+            }
+
+            return;
+        }
+
+        // Handle non-wave signals (e.g., from neighbors clicking)
+        // Trigger onClick behavior
         if (TimerCell.onClick) {
             TimerCell.onClick(cell);
         }

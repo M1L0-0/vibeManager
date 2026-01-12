@@ -17,6 +17,13 @@ export const StemCell: PamModule = {
         description: 'The primordial cell - empty and full of potential',
     },
 
+    onSpawn: (cell: Cell) => {
+        // Initialize seen waves tracking
+        if (!cell.state.seenSignals) {
+            cell.state.seenSignals = new Set<string>();
+        }
+    },
+
     onClick: (cell: Cell) => {
         console.log('🧬 Stem Cell clicked:', cell.id);
 
@@ -62,9 +69,60 @@ export const StemCell: PamModule = {
     onSignal: (cell: Cell, signal: Signal) => {
         console.log('📨 Stem Cell received signal:', signal);
 
-        // Toggle between bright and dim state
+        // Handle wave propagation (independent of command)
+        if (signal.type === 'wave' && signal.waveId) {
+            // Initialize seenSignals if needed
+            if (!cell.state.seenSignals) {
+                cell.state.seenSignals = new Set<string>();
+            }
+
+            // Check if we've already processed this wave
+            if (cell.state.seenSignals.has(signal.waveId)) {
+                console.log(`🌊 Stem Cell ${cell.id}: Already processed wave ${signal.waveId}`);
+                return;
+            }
+
+            console.log(`🌊 Stem Cell ${cell.id}: Propagating wave ${signal.waveId}`);
+
+            // Mark this wave as seen
+            cell.state.seenSignals.add(signal.waveId);
+
+            // Propagate wave to neighbors
+            const neighbors = getNeighbors(cell.coord);
+            neighbors.forEach((neighborCoord) => {
+                const neighborId = hexToId(neighborCoord);
+                const neighborCell = useGridStore.getState().getCellAt(neighborCoord);
+
+                if (neighborCell) {
+                    useGridStore.getState().updateCell(neighborId, {
+                        signals: [...neighborCell.signals, signal],
+                    });
+                }
+            });
+
+            // Visual feedback - brief flash when wave passes through
+            const store = useGridStore.getState();
+
+            // Toggle the cell as the wave passes
+            const currentActivity = cell.state.activity;
+            const newActivity = currentActivity > 0.5 ? 0 : 1.0;
+
+            store.updateCell(cell.id, {
+                state: {
+                    ...cell.state,
+                    activity: newActivity,
+                    seenSignals: cell.state.seenSignals,
+                },
+            });
+
+            // Note: Waves toggle cells but don't trigger onClick (which would send signals)
+            // This prevents infinite loops
+            return;
+        }
+
+        // Handle non-wave signals (pulse, timer-pulse from neighbors)
         const currentActivity = cell.state.activity;
-        const newActivity = currentActivity > 0.5 ? 0 : 1.0; // Toggle between dim (0) and bright (1.0)
+        const newActivity = currentActivity > 0.5 ? 0 : 1.0;
 
         const store = useGridStore.getState();
         store.updateCell(cell.id, {

@@ -8,11 +8,13 @@ import { useEffect } from 'react';
 import { useGridStore } from '@/store/grid-store';
 import { StemCell } from '@/pams/stem';
 import { TimerCell } from '@/pams/timer';
+import { WaveCell } from '@/pams/wave';
 
 // Map of PAM IDs to their modules
 const PAM_REGISTRY: Record<string, any> = {
     'stem': StemCell,
     'timer': TimerCell,
+    'wave': WaveCell,
 };
 
 export function CellTicker() {
@@ -38,6 +40,14 @@ export function CellTicker() {
                 // Process pending signals
                 if (cell.signals.length > 0 && pamModule?.onSignal) {
                     cell.signals.forEach((signal) => {
+                        // Generic command handling - trigger default behavior
+                        if (signal.command === 'trigger_default' && pamModule.onClick) {
+                            console.log(`⚡ Executing default behavior for ${cell.id} via command`);
+                            pamModule.onClick(cell);
+                        }
+
+                        // Always call onSignal for propagation and custom handling
+                        // Note: Wave duplicate prevention happens in each cell's onSignal via waveId
                         pamModule.onSignal(cell, signal);
                     });
 

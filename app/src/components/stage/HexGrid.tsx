@@ -9,11 +9,13 @@ import { HexCell } from './HexCell';
 import { Cell } from '@/lib/vibe-core';
 import { StemCell } from '@/pams/stem';
 import { TimerCell } from '@/pams/timer';
+import { WaveCell } from '@/pams/wave';
 
 // Registry of all PAM modules
 const PAM_REGISTRY: Record<string, any> = {
     'stem': StemCell,
     'timer': TimerCell,
+    'wave': WaveCell,
 };
 
 export function HexGrid() {

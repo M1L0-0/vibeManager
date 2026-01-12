@@ -15,6 +15,8 @@ export interface Signal {
     payload?: any;
     sourceId: string;
     timestamp: number;
+    waveId?: string; // For wave propagation - ensures once-only processing
+    command?: string; // Generic command: 'trigger_default', 'replicate', 'destroy', etc.
 }
 
 /**
@@ -36,6 +38,7 @@ export interface PamState {
     energy: number; // 0-100
     activity: number; // 0-1, for pulse animation
     data?: Record<string, any>; // Module-specific data
+    seenSignals?: Set<string>; // Track processed signal IDs to prevent duplicates/loops
 }
 
 /**
