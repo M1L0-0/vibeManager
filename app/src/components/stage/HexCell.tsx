@@ -13,9 +13,11 @@ interface HexCellProps {
     cell: Cell;
     onClick: (cell: Cell) => void;
     onRightClick?: (cell: Cell) => void;
+    onMouseDown?: (cell: Cell) => void;
+    onMouseUp?: (cell: Cell) => void;
 }
 
-export function HexCell({ cell, onClick, onRightClick }: HexCellProps) {
+export function HexCell({ cell, onClick, onRightClick, onMouseDown, onMouseUp }: HexCellProps) {
     const position = hexToPixel(cell.coord);
     const activityRef = useRef(cell.state.activity);
 
@@ -45,6 +47,8 @@ export function HexCell({ cell, onClick, onRightClick }: HexCellProps) {
         <motion.g
             transform={`translate(${position.x}, ${position.y})`}
             onClick={() => onClick(cell)}
+            onMouseDown={() => onMouseDown?.(cell)}
+            onMouseUp={() => onMouseUp?.(cell)}
             onContextMenu={(e) => {
                 e.preventDefault();
                 onRightClick?.(cell);

@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { HexGrid } from './HexGrid';
+import { useToolStore } from '@/store/tool-store';
 
 export function Viewport() {
     const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -13,13 +14,20 @@ export function Viewport() {
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+    const currentTool = useToolStore((state) => state.currentTool);
+    const editorMode = useToolStore((state) => state.editorMode);
+
+    // Disable viewport panning when in transplant mode
+    const canDragViewport = !(currentTool === 'genesis' && editorMode === 'transplant');
+
     const handleMouseDown = (e: React.MouseEvent) => {
+        if (!canDragViewport) return;
         setIsDragging(true);
         setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (isDragging) {
+        if (isDragging && canDragViewport) {
             setPan({
                 x: e.clientX - dragStart.x,
                 y: e.clientY - dragStart.y,
@@ -45,7 +53,7 @@ export function Viewport() {
                 overflow: 'hidden',
                 background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%)',
                 position: 'relative',
-                cursor: isDragging ? 'grabbing' : 'grab',
+                cursor: canDragViewport ? (isDragging ? 'grabbing' : 'grab') : 'default',
             }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}

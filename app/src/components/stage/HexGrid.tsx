@@ -8,37 +8,112 @@ import { useGridStore } from '@/store/grid-store';
 import { useToolStore } from '@/store/tool-store';
 import { HexCell } from './HexCell';
 import { Cell } from '@/lib/vibe-core';
-import { StemCell } from '@/pams/stem';
-import { TimerCell } from '@/pams/timer';
-import { WaveCell } from '@/pams/wave';
+import { getPamModule } from '@/pams/registry';
 import { GenomeInspector } from '../ui/GenomeInspector';
 import { useState } from 'react';
-
-// Registry of all PAM modules
-const PAM_REGISTRY: Record<string, any> = {
-    'stem': StemCell,
-    'timer': TimerCell,
-    'wave': WaveCell,
-};
 
 export function HexGrid() {
     const cellsMap = useGridStore((state) => state.cells);
     const cells = Array.from(cellsMap.values());
     const currentTool = useToolStore((state) => state.currentTool);
+    const editorMode = useToolStore((state) => state.editorMode);
+    const selectedCellDNA = useToolStore((state) => state.selectedCellDNA);
+    const spawnCell = useGridStore((state) => state.spawnCell);
+    const killCell = useGridStore((state) => state.killCell);
+    const updateCell = useGridStore((state) => state.updateCell);
+    const getCellAt = useGridStore((state) => state.getCellAt);
 
     const [inspectingCell, setInspectingCell] = useState<Cell | null>(null);
+    const [draggingCell, setDraggingCell] = useState<Cell | null>(null);
 
     const handleCellClick = (cell: Cell) => {
-        // Check current tool
-        if (currentTool === 'inspect') {
-            // Open genome inspector
-            setInspectingCell(cell);
-        } else {
-            // Hand tool - trigger normal onClick behavior
-            const pamModule = PAM_REGISTRY[cell.dna.id];
-            if (pamModule?.onClick) {
-                pamModule.onClick(cell);
+        // Genesis Tool - Transplant Mode (do nothing on click, only drag-drop)
+        if (currentTool === 'genesis' && editorMode === 'transplant') {
+            return; // Don't trigger onClick in transplant mode
+        }
+
+        // Genesis Tool - Spawn Mode
+        if (currentTool === 'genesis' && editorMode === 'spawn') {
+            if (!selectedCellDNA) {
+                console.log('No cell type selected');
+                return;
             }
+
+            console.log(`🧬 Spawning ${selectedCellDNA.name} at ${cell.coord.q},${cell.coord.r}`);
+
+            // Kill existing cell if present
+            killCell(cell.id);
+
+            // Spawn new cell of selected type
+            const pamModule = getPamModule(selectedCellDNA.id);
+            spawnCell(cell.coord, selectedCellDNA, pamModule);
+            return;
+        }
+
+        // Inspect Tool
+        if (currentTool === 'inspect') {
+            setInspectingCell(cell);
+            return;
+        }
+
+        // Hand Tool - trigger normal onClick behavior
+        const pamModule = getPamModule(cell.dna.id);
+        if (pamModule?.onClick) {
+            pamModule.onClick(cell);
+        }
+    };
+
+    const handleCellMouseDown = (cell: Cell) => {
+        // Genesis Tool - Transplant Mode
+        if (currentTool === 'genesis' && editorMode === 'transplant') {
+            setDraggingCell(cell);
+        }
+    };
+
+    const handleCellMouseUp = (targetCell: Cell) => {
+        // Genesis Tool - Transplant Mode
+        if (currentTool === 'genesis' && editorMode === 'transplant' && draggingCell) {
+            if (draggingCell.id === targetCell.id) {
+                // Dropped on same cell, cancel
+                setDraggingCell(null);
+                return;
+            }
+
+            console.log(`🔬 Transplanting ${draggingCell.dna.name} from ${draggingCell.coord.q},${draggingCell.coord.r} to ${targetCell.coord.q},${targetCell.coord.r}`);
+
+            // Get the current states
+            const sourceCoord = draggingCell.coord;
+            const targetCoord = targetCell.coord;
+            const sourceDNA = draggingCell.dna;
+            const targetDNA = targetCell.dna;
+            const sourceState = draggingCell.state;
+            const targetState = targetCell.state;
+
+            // Kill both cells
+            killCell(draggingCell.id);
+            killCell(targetCell.id);
+
+            // Swap: source DNA goes to target position, target DNA goes to source position
+            const sourcePam = getPamModule(sourceDNA.id);
+            const targetPam = getPamModule(targetDNA.id);
+
+            spawnCell(targetCoord, sourceDNA, sourcePam);
+            spawnCell(sourceCoord, targetDNA, targetPam);
+
+            // Update the states to preserve data
+            setTimeout(() => {
+                const newTargetCell = getCellAt(targetCoord);
+                const newSourceCell = getCellAt(sourceCoord);
+
+                if (newTargetCell) {
+                    updateCell(newTargetCell.id, { state: sourceState });
+                }
+                if (newSourceCell) {
+                    updateCell(newSourceCell.id, { state: targetState });
+                }
+            }, 10);
+
+            setDraggingCell(null);
         }
     };
 
@@ -84,6 +159,8 @@ export function HexGrid() {
                             cell={cell}
                             onClick={handleCellClick}
                             onRightClick={handleCellRightClick}
+                            onMouseDown={handleCellMouseDown}
+                            onMouseUp={handleCellMouseUp}
                         />
                     ))}
                 </g>

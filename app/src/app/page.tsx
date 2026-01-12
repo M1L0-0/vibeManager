@@ -8,7 +8,9 @@
 import { useEffect } from 'react';
 import { Viewport } from '@/components/stage/Viewport';
 import { ToolSelector } from '@/components/ui/ToolSelector';
+import { CellSelector } from '@/components/ui/CellSelector';
 import { useGridStore } from '@/store/grid-store';
+import { useToolStore } from '@/store/tool-store';
 import { StemCell } from '@/pams/stem';
 import { TimerCell } from '@/pams/timer';
 import { WaveCell } from '@/pams/wave';
@@ -17,6 +19,7 @@ import { CellTicker } from '@/components/stage/CellTicker';
 
 export default function Home() {
   const spawnCell = useGridStore((state) => state.spawnCell);
+  const currentTool = useToolStore((state) => state.currentTool);
 
   useEffect(() => {
     // Spawn initial cells in a hexagonal pattern
@@ -47,6 +50,7 @@ export default function Home() {
     <>
       <CellTicker />
       <ToolSelector />
+      {currentTool === 'genesis' && <CellSelector />}
       <Viewport />
     </>
   );

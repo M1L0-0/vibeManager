@@ -5,7 +5,7 @@
 'use client';
 
 import { useToolStore } from '@/store/tool-store';
-import { Hand, Search } from 'lucide-react';
+import { Hand, Search, Dna } from 'lucide-react';
 
 export function ToolSelector() {
     const { currentTool, setTool } = useToolStore();
@@ -13,6 +13,7 @@ export function ToolSelector() {
     const tools = [
         { id: 'hand' as const, icon: Hand, label: 'Hand Tool', description: 'Interact with cells' },
         { id: 'inspect' as const, icon: Search, label: 'Inspect Tool', description: 'View cell genome' },
+        { id: 'genesis' as const, icon: Dna, label: 'Genesis Tool', description: 'Create and arrange cells' },
     ];
 
     return (
