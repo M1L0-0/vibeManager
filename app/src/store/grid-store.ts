@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import { Cell, PamDNA, Signal } from '@/lib/vibe-core';
+import { Cell, PamDNA, Signal, PamModule } from '@/lib/vibe-core';
 import { HexCoord, hexToId } from '@/core/grid/hex';
 
 interface GridState {
@@ -15,7 +15,7 @@ interface GridState {
     signals: Signal[];
 
     // Actions
-    spawnCell: (coord: HexCoord, dna: PamDNA) => void;
+    spawnCell: (coord: HexCoord, dna: PamDNA, pamModule?: PamModule) => void;
     killCell: (cellId: string) => void;
     updateCell: (cellId: string, updates: Partial<Cell>) => void;
     addSignal: (signal: Signal) => void;
@@ -30,7 +30,7 @@ export const useGridStore = create<GridState>((set, get) => ({
     cells: new Map(),
     signals: [],
 
-    spawnCell: (coord, dna) => {
+    spawnCell: (coord, dna, pamModule) => {
         const cellId = hexToId(coord);
         const existing = get().cells.get(cellId);
 
@@ -51,6 +51,11 @@ export const useGridStore = create<GridState>((set, get) => ({
             signals: [],
             createdAt: Date.now(),
         };
+
+        // Call onSpawn lifecycle if provided
+        if (pamModule?.onSpawn) {
+            pamModule.onSpawn(newCell);
+        }
 
         set((state) => {
             const newCells = new Map(state.cells);

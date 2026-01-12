@@ -82,12 +82,30 @@ export function HexCell({ cell, onClick }: HexCellProps) {
                 />
             )}
 
-            {/* Energy indicator (small dot) */}
-            <circle
-                r={3}
-                fill="#ffffff"
-                opacity={cell.state.energy / 100}
-            />
+            {/* Timer countdown text (for timer cells) */}
+            {cell.dna.id === 'timer' && cell.state.data?.timeRemaining !== undefined && (
+                <text
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="#ffffff"
+                    fontSize={24}
+                    fontWeight="bold"
+                    fontFamily="monospace"
+                    y={3}
+                    style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                    {Math.ceil(cell.state.data.timeRemaining)}
+                </text>
+            )}
+
+            {/* Energy indicator (small dot) - hidden for timer cells */}
+            {cell.dna.id !== 'timer' && (
+                <circle
+                    r={3}
+                    fill="#ffffff"
+                    opacity={cell.state.energy / 100}
+                />
+            )}
         </motion.g>
     );
 }

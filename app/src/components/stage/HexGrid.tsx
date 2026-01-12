@@ -8,15 +8,23 @@ import { useGridStore } from '@/store/grid-store';
 import { HexCell } from './HexCell';
 import { Cell } from '@/lib/vibe-core';
 import { StemCell } from '@/pams/stem';
+import { TimerCell } from '@/pams/timer';
+
+// Registry of all PAM modules
+const PAM_REGISTRY: Record<string, any> = {
+    'stem': StemCell,
+    'timer': TimerCell,
+};
 
 export function HexGrid() {
     const cellsMap = useGridStore((state) => state.cells);
     const cells = Array.from(cellsMap.values());
 
     const handleCellClick = (cell: Cell) => {
-        // Trigger the cell's onClick behavior
-        if (cell.dna.id === 'stem' && StemCell.onClick) {
-            StemCell.onClick(cell);
+        // Find and trigger the cell's onClick behavior from registry
+        const pamModule = PAM_REGISTRY[cell.dna.id];
+        if (pamModule?.onClick) {
+            pamModule.onClick(cell);
         }
     };
 
