@@ -5,18 +5,23 @@
 
 import { HexCoord } from '@/core/grid/hex';
 
+export type SignalCommand = 'TRIGGER' | 'RESET' | 'PAUSE';
+
 /**
  * Signal - Biomimetic communication between cells
  */
 export interface Signal {
     id: string;
     type: string;
+    channelId?: string; // Chemical Channel ID
     strength: number; // 0-1, decays over distance
+    range?: number; // Time To Live (hops remaining)
+    speed?: number; // Speed of propagation (units per second)
+    command?: SignalCommand; // Specific instruction
     payload?: any;
     sourceId: string;
     timestamp: number;
     waveId?: string; // For wave propagation - ensures once-only processing
-    command?: string; // Generic command: 'trigger_default', 'replicate', 'destroy', etc.
 }
 
 /**

@@ -79,10 +79,17 @@ export const StemCell: PamModule = {
             cell.state.seenSignals.add(signal.waveId);
 
             // Propagate wave to neighbors using centralized helper
+            // If the signal carries directional constraints (from a directed Wave Cell), respect them.
+            // Otherwise, default to [0-5] (omni-directional).
+            const allowedDirections = signal.payload?.allowedDirections;
+
+            // Respect signal speed if present, otherwise default to 10.0 (Fast)
+            const propagateSpeed = signal.speed || 10.0;
+
             useGridStore.getState().propagateSignal(cell.id, signal, {
-                speed: 10.0,
-                color: '#06b6d4',
-                type: 'arc'
+                speed: propagateSpeed,
+                type: 'arc',
+                directions: allowedDirections // If undefined, propagateSignal processes all neighbors
             });
 
             // Visual feedback - brief flash when wave passes through

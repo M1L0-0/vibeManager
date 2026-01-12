@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { Cell, PamDNA, Signal, PamModule, Particle } from '@/lib/vibe-core';
 import { HexCoord, hexToId, getNeighbors } from '@/core/grid/hex';
+import { CHANNELS, ChannelId } from '@/core/grid/channels';
 
 interface GridState {
     // The world map: cellId -> Cell
@@ -35,7 +36,7 @@ interface GridState {
     deliverSignal: (cellId: string, signal: Signal) => void;
 
     // Centralized Propagation (Visuals + Delivery)
-    propagateSignal: (sourceId: string, signal: Signal, options?: { speed?: number, color?: string, type?: 'linear' | 'arc' }) => void;
+    propagateSignal: (sourceId: string, signal: Signal, options?: { speed?: number, color?: string, type?: 'linear' | 'arc', directions?: number[] }) => void;
 }
 
 export const useGridStore = create<GridState>((set, get) => ({
@@ -155,19 +156,47 @@ export const useGridStore = create<GridState>((set, get) => ({
         // We'll add particles for valid neighbors
         const newParticles: Particle[] = [];
 
-        neighbors.forEach(neighborCoord => {
+        neighbors.forEach((neighborCoord, directionIndex) => {
+            // Filter by direction if mask provided
+            // directionIndex corresponds to the neighbor index (0-5)
+            if (options?.directions && !options.directions.includes(directionIndex)) {
+                return;
+            }
+
             const neighborId = hexToId(neighborCoord);
             const neighborCell = state.cells.get(neighborId);
 
             if (neighborCell) {
+                // Determine particle color: Explicit override > Channel Color > Default
+                let particleColor = options?.color || '#ffffff';
+
+                if (!options?.color && signal.channelId) {
+                    const channel = CHANNELS[signal.channelId as ChannelId];
+                    if (channel) {
+                        particleColor = channel.color;
+                    }
+                }
+
+                // Handle Range Logic
+                // If signal has a range, decrement it for the next hop
+                const currentRange = signal.range !== undefined ? signal.range : 100; // Default infinite-ish
+                if (currentRange <= 0) {
+                    return; // Fizzle out
+                }
+
+                const nextSignal = {
+                    ...signal,
+                    range: currentRange - 1
+                };
+
                 newParticles.push({
                     id: `p-${Date.now()}-${Math.random()}`,
                     sourceId: sourceId,
                     targetId: neighborId,
-                    signal: signal,
+                    signal: nextSignal, // Carry the decremented range
                     progress: 0,
                     speed: options?.speed || 5.0,
-                    color: options?.color || '#ffffff',
+                    color: particleColor,
                     type: options?.type || 'linear'
                 });
             }

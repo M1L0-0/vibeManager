@@ -13,6 +13,7 @@ interface TimerData {
     lastTick: number;
     autoRestart: boolean; // Auto-restart when timer completes
     loop: boolean; // Continuous loop mode
+    paused: boolean; // Manually paused state
 }
 
 export const TimerCell: PamModule = {
@@ -26,23 +27,30 @@ export const TimerCell: PamModule = {
     },
 
     onSpawn: (cell: Cell) => {
-        // Initialize timer data
-        cell.state.data = {
-            timeRemaining: 3,
-            maxTime: 3,
-            isRunning: false,
-            lastTick: Date.now(),
-            autoRestart: false,
-            loop: false,
-        } as TimerData;
+        // Initialize timer state if needed
+        if (!cell.state.data) {
+            cell.state.data = {
+                maxTime: 3, // seconds
+                timeRemaining: 3,
+                isRunning: false, // Default to not running on spawn
+                lastTick: Date.now(), // Initialize lastTick
+                autoRestart: false,
+                loop: false,
+                paused: false
+            } as TimerData;
+        }
     },
 
     onClick: (cell: Cell) => {
         const data = cell.state.data as TimerData;
 
-        if (!data) return;
+        if (!data || data.paused) return;
 
-        // If timer finished, reset it
+        // Auto-start logic: If not running and has auto-restart/loop, maybe start?
+        // Actually, onTick usually assumes running?
+        // Current implementation seems to always tick if timeRemaining > 0.
+
+        let { timeRemaining, maxTime } = data;
         if (data.timeRemaining <= 0) {
             data.timeRemaining = data.maxTime;
             data.isRunning = false;
@@ -65,6 +73,11 @@ export const TimerCell: PamModule = {
         const data = cell.state.data as TimerData;
 
         if (!data || !data.isRunning) return;
+
+        // Ensure timeRemaining is valid
+        if (typeof data.timeRemaining !== 'number' || isNaN(data.timeRemaining)) {
+            data.timeRemaining = data.maxTime || 3;
+        }
 
         // Update time remaining
         data.timeRemaining = Math.max(0, data.timeRemaining - deltaTime);
@@ -133,31 +146,76 @@ export const TimerCell: PamModule = {
     },
 
     onSignal: (cell: Cell, signal: Signal) => {
-        console.log('📨 Timer Cell received signal:', signal);
-
-        // Handle wave propagation
-        if (signal.type === 'wave' && signal.waveId) {
+        // --- Deduplication Logic ---
+        // Ensure we haven't processed this signal/wave before
+        if (signal.waveId) {
             // Initialize seenSignals if needed
             if (!cell.state.seenSignals) {
                 cell.state.seenSignals = new Set<string>();
             }
 
-            // Check if already processed
             if (cell.state.seenSignals.has(signal.waveId)) {
-                console.log(`🌊 Timer Cell ${cell.id}: Already processed wave ${signal.waveId}`);
+                // Already processed this wave
                 return;
             }
 
-            console.log(`🌊 Timer Cell ${cell.id}: Propagating wave ${signal.waveId}`);
-
             // Mark as seen
             cell.state.seenSignals.add(signal.waveId);
+            useGridStore.getState().updateCell(cell.id, {
+                state: { ...cell.state, seenSignals: cell.state.seenSignals }
+            });
+        }
+
+        let commandHandled = false;
+
+        // --- Command Handling ---
+        if (signal.command === 'RESET') {
+            const maxTime = cell.state.data?.maxTime || 3;
+            useGridStore.getState().updateCell(cell.id, {
+                state: {
+                    ...cell.state,
+                    data: {
+                        ...cell.state.data,
+                        timeRemaining: maxTime,
+                        isRunning: false
+                    }
+                }
+            });
+            commandHandled = true;
+        } else if (signal.command === 'PAUSE') {
+            const data = cell.state.data as TimerData;
+            if (data) {
+                // Toggle running state (Pause/Resume)
+                data.isRunning = !data.isRunning;
+                useGridStore.getState().updateCell(cell.id, {
+                    state: {
+                        ...cell.state,
+                        data: {
+                            ...cell.state.data,
+                            isRunning: data.isRunning
+                        }
+                    }
+                });
+            }
+            commandHandled = true;
+        }
+
+        // --- Standard Wave Propagation ---
+        // If it's a wave passing through
+        if (signal.type === 'wave' && signal.waveId) {
+            console.log(`🌊 Timer Cell ${cell.id}: Propagating wave ${signal.waveId}`);
 
             // Propagate to neighbors
+            const allowedDirections = signal.payload?.allowedDirections;
+
+            // Respect signal speed if present, otherwise default to 10.0 (Fast)
+            const propagateSpeed = signal.speed || 10.0;
+
             useGridStore.getState().propagateSignal(cell.id, signal, {
-                speed: 10.0,
-                color: '#06b6d4',
-                type: 'arc'
+                speed: propagateSpeed,
+                color: '#f59e0b',
+                type: 'arc',
+                directions: allowedDirections
             });
 
             // Visual feedback
@@ -165,42 +223,45 @@ export const TimerCell: PamModule = {
                 state: {
                     ...cell.state,
                     activity: 0.8,
-                    seenSignals: cell.state.seenSignals,
-                },
+                }
             });
 
-            // Trigger timer start/pause when wave passes (same as onClick but without calling it)
-            const data = cell.state.data as TimerData;
-            if (data) {
-                // If timer finished, reset it
-                if (data.timeRemaining <= 0) {
-                    data.timeRemaining = data.maxTime;
-                    data.isRunning = false;
-                    data.lastTick = Date.now();
-                } else {
-                    // Toggle pause/resume
-                    data.isRunning = !data.isRunning;
-                    data.lastTick = Date.now();
+            // If command was NOT handled explicitly (Default/Universal), use default trigger behavior
+            if (!commandHandled) {
+                // Default: Toggle running state (same as Click / Pause)
+                // But for clarity, let's treat explicit PAUSE and default TRIGGER the same for TimerCell?
+                // Actually, TRIGGER usually means "Start if stopped" or "Do logic".
+                // Timer Logic: Toggle.
+
+                const data = cell.state.data as TimerData;
+                if (data) {
+                    if (data.timeRemaining <= 0) {
+                        data.timeRemaining = data.maxTime;
+                        data.isRunning = false;
+                        data.lastTick = Date.now();
+                    } else {
+                        // Toggle pause/resume
+                        data.isRunning = !data.isRunning;
+                        data.lastTick = Date.now();
+                    }
+
+                    console.log(`⏱️ Timer Cell ${cell.id} triggered by wave: ${data.isRunning ? 'Started/Resumed' : 'Paused'}`);
+
+                    // Update cell with new data
+                    useGridStore.getState().updateCell(cell.id, {
+                        state: {
+                            ...cell.state,
+                            data,
+                        },
+                    });
                 }
-
-                console.log(`⏱️ Timer Cell ${cell.id} triggered by wave: ${data.isRunning ? 'Started/Resumed' : 'Paused'}`);
-
-                // Update cell with new data
-                useGridStore.getState().updateCell(cell.id, {
-                    state: {
-                        ...cell.state,
-                        data,
-                        seenSignals: cell.state.seenSignals,
-                    },
-                });
             }
-
-            return;
+            return; // Return after handling wave propagation to prevent default onClick behavior
         }
 
         // Handle non-wave signals (e.g., from neighbors clicking)
-        // Trigger onClick behavior
-        if (TimerCell.onClick) {
+        // Trigger onClick behavior if no command was processed and it's not a wave
+        if (!signal.command && TimerCell.onClick) {
             TimerCell.onClick(cell);
         }
     },

@@ -92,7 +92,7 @@ export function HexCell({ cell, onClick, onRightClick, onMouseDown, onMouseUp }:
             )}
 
             {/* Timer countdown text (for timer cells) */}
-            {cell.dna.id === 'timer' && cell.state.data?.timeRemaining !== undefined && (
+            {cell.dna.id === 'timer' && (
                 <text
                     textAnchor="middle"
                     dominantBaseline="middle"
@@ -103,7 +103,9 @@ export function HexCell({ cell, onClick, onRightClick, onMouseDown, onMouseUp }:
                     y={3}
                     style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
-                    {cell.state.data.timeRemaining.toFixed(1)}
+                    {(cell.state.data?.timeRemaining !== undefined && !isNaN(cell.state.data.timeRemaining))
+                        ? cell.state.data.timeRemaining.toFixed(1)
+                        : (cell.state.data?.maxTime?.toFixed(1) || '3.0')}
                 </text>
             )}
 
