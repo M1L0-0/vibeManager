@@ -9,7 +9,7 @@ import { TimerCell } from '@/pams/timer';
 import { WaveCell } from '@/pams/wave';
 
 // Registry mapping cell ID to PAM module
-export const PAM_REGISTRY: Record<string, PamModule> = {
+export const REGISTRY: Record<string, PamModule> = {
     'stem': StemCell,
     'timer': TimerCell,
     'wave': WaveCell,
@@ -17,10 +17,10 @@ export const PAM_REGISTRY: Record<string, PamModule> = {
 
 // Get all available cell types as an array (for Genesis Tool)
 export const getAllCellTypes = (): PamModule[] => {
-    return Object.values(PAM_REGISTRY);
+    return Object.values(REGISTRY);
 };
 
 // Get PAM module by cell ID
 export const getPamModule = (cellId: string): PamModule | undefined => {
-    return PAM_REGISTRY[cellId];
+    return REGISTRY[cellId];
 };

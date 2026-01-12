@@ -97,4 +97,9 @@ export interface PamModule {
      * Called when the cell is clicked
      */
     onClick?: (cell: Cell) => void;
+
+    /**
+     * Optional React Component for configuring this cell in GenomeInspector
+     */
+    configComponent?: React.ComponentType<{ cell: Cell; updateCell: (id: string, updates: Partial<Cell>) => void }>;
 }

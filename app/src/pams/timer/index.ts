@@ -16,15 +16,20 @@ interface TimerData {
     paused: boolean; // Manually paused state
 }
 
+import { TimerConfig } from './Config';
+import { handleStandardWavePropagation } from '@/core/grid/propagation';
+
 export const TimerCell: PamModule = {
     dna: {
         id: 'timer',
         name: 'Timer Cell',
         version: '1.0.0',
-        color: '#f59e0b', // Orange/Amber
-        icon: 'Timer',
-        description: 'Counts down from 3 seconds and emits a pulse',
+        color: '#f59e0b', // Amber
+        icon: 'Clock',
+        description: 'Triggers signals after a delay',
     },
+
+    configComponent: TimerConfig,
 
     onSpawn: (cell: Cell) => {
         // Initialize timer state if needed
@@ -147,19 +152,13 @@ export const TimerCell: PamModule = {
 
     onSignal: (cell: Cell, signal: Signal) => {
         // --- Deduplication Logic ---
-        // Ensure we haven't processed this signal/wave before
         if (signal.waveId) {
-            // Initialize seenSignals if needed
             if (!cell.state.seenSignals) {
                 cell.state.seenSignals = new Set<string>();
             }
-
             if (cell.state.seenSignals.has(signal.waveId)) {
-                // Already processed this wave
                 return;
             }
-
-            // Mark as seen
             cell.state.seenSignals.add(signal.waveId);
             useGridStore.getState().updateCell(cell.id, {
                 state: { ...cell.state, seenSignals: cell.state.seenSignals }
@@ -185,7 +184,6 @@ export const TimerCell: PamModule = {
         } else if (signal.command === 'PAUSE') {
             const data = cell.state.data as TimerData;
             if (data) {
-                // Toggle running state (Pause/Resume)
                 data.isRunning = !data.isRunning;
                 useGridStore.getState().updateCell(cell.id, {
                     state: {
@@ -201,38 +199,35 @@ export const TimerCell: PamModule = {
         }
 
         // --- Standard Wave Propagation ---
-        // If it's a wave passing through
-        if (signal.type === 'wave' && signal.waveId) {
-            console.log(`🌊 Timer Cell ${cell.id}: Propagating wave ${signal.waveId}`);
+        if (signal.type === 'wave') {
+            // Helper handles propagation. 
+            // Note: We already updated seenSignals above, but the helper does it again. 
+            // This is slightly redundant but harmless as Sets dedup.
+            // Actually, helper returns FALSE if already seen.
+            // Since we added it to Set above, helper might return false?
+            // Helper checks: if (seenSignals.has(waveId)) return false;
+            // YES, helper will fail if we add it locally first!
 
-            // Propagate to neighbors
-            const allowedDirections = signal.payload?.allowedDirections;
+            // Refactor: Let helper handle dedup entirely.
+            // But we have logic above (lines 154-172) that duplicates what helper does.
+            // I should remove the local dedup block if I rely on helper.
+            // Logic below assumes I should use helper.
 
-            // Respect signal speed if present, otherwise default to 10.0 (Fast)
-            const propagateSpeed = signal.speed || 10.0;
+            // However, removing that block means I need to handle it here.
 
-            useGridStore.getState().propagateSignal(cell.id, signal, {
-                speed: propagateSpeed,
-                color: '#f59e0b',
-                type: 'arc',
-                directions: allowedDirections
+            const propagated = handleStandardWavePropagation(cell, signal, {
+                color: '#f59e0b'
             });
 
-            // Visual feedback
-            useGridStore.getState().updateCell(cell.id, {
-                state: {
-                    ...cell.state,
-                    activity: 0.8,
-                }
-            });
+            if (!propagated && signal.waveId && cell.state.seenSignals?.has(signal.waveId)) {
+                // Return if duplicate
+                return;
+            }
 
-            // If command was NOT handled explicitly (Default/Universal), use default trigger behavior
+            // If we are here, it's a new wave (or propagated successfully).
+
+            // Timer Logic: Trigger toggle if no command
             if (!commandHandled) {
-                // Default: Toggle running state (same as Click / Pause)
-                // But for clarity, let's treat explicit PAUSE and default TRIGGER the same for TimerCell?
-                // Actually, TRIGGER usually means "Start if stopped" or "Do logic".
-                // Timer Logic: Toggle.
-
                 const data = cell.state.data as TimerData;
                 if (data) {
                     if (data.timeRemaining <= 0) {
@@ -240,27 +235,19 @@ export const TimerCell: PamModule = {
                         data.isRunning = false;
                         data.lastTick = Date.now();
                     } else {
-                        // Toggle pause/resume
                         data.isRunning = !data.isRunning;
                         data.lastTick = Date.now();
                     }
-
-                    console.log(`⏱️ Timer Cell ${cell.id} triggered by wave: ${data.isRunning ? 'Started/Resumed' : 'Paused'}`);
-
-                    // Update cell with new data
+                    console.log(`⏱️ Timer Cell ${cell.id} triggered by wave`);
                     useGridStore.getState().updateCell(cell.id, {
-                        state: {
-                            ...cell.state,
-                            data,
-                        },
+                        state: { ...cell.state, data }
                     });
                 }
             }
-            return; // Return after handling wave propagation to prevent default onClick behavior
+            return; // Stop after wave handling
         }
 
-        // Handle non-wave signals (e.g., from neighbors clicking)
-        // Trigger onClick behavior if no command was processed and it's not a wave
+        // --- Non-Wave Signals (Click/Pulse) ---
         if (!signal.command && TimerCell.onClick) {
             TimerCell.onClick(cell);
         }

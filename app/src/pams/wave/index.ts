@@ -5,6 +5,9 @@
 import { PamModule, Cell, Signal } from '@/lib/vibe-core';
 import { useGridStore } from '@/store/grid-store';
 import { getNeighbors, hexToId } from '@/core/grid/hex';
+import { handleStandardWavePropagation } from '@/core/grid/propagation';
+
+import { WaveConfig } from './Config';
 
 export const WaveCell: PamModule = {
     dna: {
@@ -15,6 +18,8 @@ export const WaveCell: PamModule = {
         icon: 'Waves',
         description: 'Emits propagating waves that ripple across connected cells',
     },
+
+    configComponent: WaveConfig,
 
     onSpawn: (cell: Cell) => {
         // Initialize seen waves set
@@ -89,72 +94,14 @@ export const WaveCell: PamModule = {
     },
 
     onSignal: (cell: Cell, signal: Signal) => {
-        // Wave cells can also propagate waves they receive
-        if (signal.type === 'wave' && signal.waveId) {
-            // Check if we've already seen this wave
-            if (!cell.state.seenSignals) {
-                cell.state.seenSignals = new Set<string>();
-            }
-
-            if (cell.state.seenSignals.has(signal.waveId)) {
+        // Use standardized wave propagation logic
+        if (signal.type === 'wave') {
+            const propagated = handleStandardWavePropagation(cell, signal);
+            if (propagated) {
+                console.log(`🌊 Wave Cell ${cell.id}: Propagated wave ${signal.waveId}`);
+            } else {
                 console.log(`🌊 Wave Cell ${cell.id}: Already processed wave ${signal.waveId}`);
-                return;
             }
-
-            console.log(`🌊 Wave Cell ${cell.id}: Propagating wave ${signal.waveId}`);
-
-            // Mark as seen
-            cell.state.seenSignals.add(signal.waveId);
-
-            // Propagate to neighbors (respecting configured directions)
-            // If the signal carries specific constraints (from another wave), prioritize those?
-            // OR: Should a Wave Cell acting as a relay enforce its OWN directions?
-            // "Copycat" implies passing the original signal.
-            // Let's say: If I am receiving a Wave, I propagate ITs wave. 
-            // So if the signal has constraints, I honor them. If not, I use my own?
-            // User said: "mimicing the signal". So we honor the SIGNAL's constraints.
-
-            const allowedDirections = signal.payload?.allowedDirections || cell.state.data?.directions || [0, 1, 2, 3, 4, 5];
-
-            // Speed Logic:
-            // 1. If local 'speedDelay' is customized (different from default 0.1), use local speed.
-            // 2. Else if signal carries a 'speed', use that (pass-through).
-            // 3. Fallback to default 10.0 (0.1s delay).
-
-            const defaultDelay = 0.1;
-            const localDelay = cell.state.data?.speedDelay;
-            const isLocalCustomized = localDelay !== undefined && Math.abs(localDelay - defaultDelay) > 0.001;
-
-            let propagateSpeed = 10.0; // Default
-
-            if (isLocalCustomized && localDelay) {
-                // Local override
-                propagateSpeed = 1 / Math.max(0.01, localDelay);
-            } else if (signal.speed) {
-                // Pass-through
-                propagateSpeed = signal.speed;
-            }
-
-            // Inject speed into next signal if acting as pass-through or repeater
-            const nextSignal = {
-                ...signal,
-                speed: propagateSpeed
-            };
-
-            useGridStore.getState().propagateSignal(cell.id, nextSignal, {
-                speed: propagateSpeed,
-                type: 'arc',
-                directions: allowedDirections
-            });
-
-            // Visual feedback
-            useGridStore.getState().updateCell(cell.id, {
-                state: {
-                    ...cell.state,
-                    activity: 0.8,
-                    seenSignals: cell.state.seenSignals,
-                },
-            });
         }
     },
 };

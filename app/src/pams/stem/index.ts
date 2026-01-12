@@ -6,6 +6,7 @@
 import { PamModule, Cell, Signal } from '@/lib/vibe-core';
 import { useGridStore } from '@/store/grid-store';
 import { getNeighbors, hexToId } from '@/core/grid/hex';
+import { handleStandardWavePropagation } from '@/core/grid/propagation';
 
 export const StemCell: PamModule = {
     dna: {
@@ -61,54 +62,20 @@ export const StemCell: PamModule = {
         console.log('📨 Stem Cell received signal:', signal);
 
         // Handle wave propagation (independent of command)
-        if (signal.type === 'wave' && signal.waveId) {
-            // Initialize seenSignals if needed
-            if (!cell.state.seenSignals) {
-                cell.state.seenSignals = new Set<string>();
+        if (signal.type === 'wave') {
+            const propagated = handleStandardWavePropagation(cell, signal);
+            if (propagated) {
+                // If it's a new wave, also toggle local activity
+                const currentActivity = cell.state.activity;
+                const newActivity = currentActivity > 0.5 ? 0 : 1.0;
+
+                useGridStore.getState().updateCell(cell.id, {
+                    state: {
+                        ...cell.state,
+                        activity: newActivity
+                    }
+                });
             }
-
-            // Check if we've already processed this wave
-            if (cell.state.seenSignals.has(signal.waveId)) {
-                console.log(`🌊 Stem Cell ${cell.id}: Already processed wave ${signal.waveId}`);
-                return;
-            }
-
-            console.log(`🌊 Stem Cell ${cell.id}: Propagating wave ${signal.waveId}`);
-
-            // Mark this wave as seen
-            cell.state.seenSignals.add(signal.waveId);
-
-            // Propagate wave to neighbors using centralized helper
-            // If the signal carries directional constraints (from a directed Wave Cell), respect them.
-            // Otherwise, default to [0-5] (omni-directional).
-            const allowedDirections = signal.payload?.allowedDirections;
-
-            // Respect signal speed if present, otherwise default to 10.0 (Fast)
-            const propagateSpeed = signal.speed || 10.0;
-
-            useGridStore.getState().propagateSignal(cell.id, signal, {
-                speed: propagateSpeed,
-                type: 'arc',
-                directions: allowedDirections // If undefined, propagateSignal processes all neighbors
-            });
-
-            // Visual feedback - brief flash when wave passes through
-            const store = useGridStore.getState();
-
-            // Toggle the cell as the wave passes
-            const currentActivity = cell.state.activity;
-            const newActivity = currentActivity > 0.5 ? 0 : 1.0;
-
-            store.updateCell(cell.id, {
-                state: {
-                    ...cell.state,
-                    activity: newActivity,
-                    seenSignals: cell.state.seenSignals,
-                },
-            });
-
-            // Note: Waves toggle cells but don't trigger onClick (which would send signals)
-            // This prevents infinite loops
             return;
         }
 
