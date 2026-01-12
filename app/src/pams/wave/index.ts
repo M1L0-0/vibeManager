@@ -52,17 +52,10 @@ export const WaveCell: PamModule = {
         cell.state.seenSignals.add(waveId);
 
         // Send wave to all neighbors
-        const neighbors = getNeighbors(cell.coord);
-        neighbors.forEach((neighborCoord) => {
-            const neighborId = hexToId(neighborCoord);
-            const neighborCell = useGridStore.getState().getCellAt(neighborCoord);
-
-            if (neighborCell) {
-                console.log(`🌊 Wave sent to neighbor: ${neighborId}`);
-                useGridStore.getState().updateCell(neighborId, {
-                    signals: [...neighborCell.signals, signal],
-                });
-            }
+        useGridStore.getState().propagateSignal(cell.id, signal, {
+            speed: 10.0,
+            color: '#06b6d4',
+            type: 'arc'
         });
 
         // Visual feedback - brief pulse
@@ -94,16 +87,10 @@ export const WaveCell: PamModule = {
             cell.state.seenSignals.add(signal.waveId);
 
             // Propagate to neighbors
-            const neighbors = getNeighbors(cell.coord);
-            neighbors.forEach((neighborCoord) => {
-                const neighborId = hexToId(neighborCoord);
-                const neighborCell = useGridStore.getState().getCellAt(neighborCoord);
-
-                if (neighborCell) {
-                    useGridStore.getState().updateCell(neighborId, {
-                        signals: [...neighborCell.signals, signal],
-                    });
-                }
+            useGridStore.getState().propagateSignal(cell.id, signal, {
+                speed: 10.0,
+                color: '#06b6d4',
+                type: 'arc'
             });
 
             // Visual feedback

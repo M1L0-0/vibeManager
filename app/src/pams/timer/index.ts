@@ -98,18 +98,11 @@ export const TimerCell: PamModule = {
                 payload: { message: 'Timer completed!' },
             };
 
-            const neighbors = getNeighbors(cell.coord);
-            neighbors.forEach((neighborCoord) => {
-                const neighborId = hexToId(neighborCoord);
-                const neighborCell = useGridStore.getState().getCellAt(neighborCoord);
-
-                if (neighborCell) {
-                    console.log(`📡 Timer signal sent to neighbor: ${neighborId}`);
-                    // Add signal to neighbor's queue - onSignal will handle activity
-                    useGridStore.getState().updateCell(neighborId, {
-                        signals: [...neighborCell.signals, signal],
-                    });
-                }
+            // Send pulse to all neighbors
+            useGridStore.getState().propagateSignal(cell.id, signal, {
+                speed: 5.0,
+                color: '#f59e0b',
+                type: 'linear'
             });
 
             // Trigger our own completion pulse
@@ -161,16 +154,10 @@ export const TimerCell: PamModule = {
             cell.state.seenSignals.add(signal.waveId);
 
             // Propagate to neighbors
-            const neighbors = getNeighbors(cell.coord);
-            neighbors.forEach((neighborCoord) => {
-                const neighborId = hexToId(neighborCoord);
-                const neighborCell = useGridStore.getState().getCellAt(neighborCoord);
-
-                if (neighborCell) {
-                    useGridStore.getState().updateCell(neighborId, {
-                        signals: [...neighborCell.signals, signal],
-                    });
-                }
+            useGridStore.getState().propagateSignal(cell.id, signal, {
+                speed: 10.0,
+                color: '#06b6d4',
+                type: 'arc'
             });
 
             // Visual feedback

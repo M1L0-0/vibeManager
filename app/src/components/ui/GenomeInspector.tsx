@@ -98,7 +98,7 @@ export function GenomeInspector({ cell, onClose }: GenomeInspectorProps) {
             onMouseDown={(e) => e.stopPropagation()}
         >
             <div
-                className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-6 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between mb-6">
@@ -182,8 +182,8 @@ export function GenomeInspector({ cell, onClose }: GenomeInspectorProps) {
                                                     type="button"
                                                     onClick={() => handleUnitChange(u)}
                                                     className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${unit === u
-                                                            ? 'bg-orange-500 text-white shadow-lg'
-                                                            : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
+                                                        ? 'bg-orange-500 text-white shadow-lg'
+                                                        : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
                                                         }`}
                                                 >
                                                     {u.charAt(0).toUpperCase() + u.slice(1)}

@@ -23,7 +23,7 @@ export function HexGrid() {
     const updateCell = useGridStore((state) => state.updateCell);
     const getCellAt = useGridStore((state) => state.getCellAt);
 
-    const [inspectingCell, setInspectingCell] = useState<Cell | null>(null);
+    // const [inspectingCell, setInspectingCell] = useState<Cell | null>(null);
     const [draggingCell, setDraggingCell] = useState<Cell | null>(null);
 
     const handleCellClick = (cell: Cell) => {
@@ -50,9 +50,8 @@ export function HexGrid() {
             return;
         }
 
-        // Inspect Tool
         if (currentTool === 'inspect') {
-            setInspectingCell(cell);
+            useToolStore.getState().setInspectingCell(cell.id);
             return;
         }
 
@@ -166,13 +165,6 @@ export function HexGrid() {
                 </g>
             </svg>
 
-            {/* Genome Inspector Popup */}
-            {inspectingCell && (
-                <GenomeInspector
-                    cell={inspectingCell}
-                    onClose={() => setInspectingCell(null)}
-                />
-            )}
         </>
     );
 }

@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { HexGrid } from './HexGrid';
+import { SignalOverlay } from './SignalOverlay';
 import { useToolStore } from '@/store/tool-store';
 
 export function Viewport() {
@@ -70,6 +71,7 @@ export function Viewport() {
                 }}
             >
                 <HexGrid />
+                <SignalOverlay />
             </div>
 
             {/* Info overlay */}

@@ -9,7 +9,9 @@ import { useEffect } from 'react';
 import { Viewport } from '@/components/stage/Viewport';
 import { ToolSelector } from '@/components/ui/ToolSelector';
 import { CellSelector } from '@/components/ui/CellSelector';
+import { SimulationControls } from '@/components/ui/SimulationControls';
 import { useGridStore } from '@/store/grid-store';
+import { GenomeInspector } from '@/components/ui/GenomeInspector';
 import { useToolStore } from '@/store/tool-store';
 import { StemCell } from '@/pams/stem';
 import { TimerCell } from '@/pams/timer';
@@ -46,12 +48,29 @@ export default function Home() {
     });
   }, [spawnCell]);
 
+  const inspectingCellId = useToolStore((state) => state.inspectingCell);
+  const setInspectingCell = useToolStore((state) => state.setInspectingCell);
+  const getCellAt = useGridStore((state) => state.getCellAt);
+
+  // Retrieve the actual cell object if we are inspecting one
+  // We need to look it up from the grid store using the ID
+  const inspectingCell = inspectingCellId ? useGridStore.getState().cells.get(inspectingCellId) : null;
+
   return (
     <>
       <CellTicker />
       <ToolSelector />
       {currentTool === 'genesis' && <CellSelector />}
+      {currentTool === 'visualizer' && <SimulationControls />}
       <Viewport />
+
+      {/* Global Overlays */}
+      {inspectingCell && (
+        <GenomeInspector
+          cell={inspectingCell}
+          onClose={() => setInspectingCell(null)}
+        />
+      )}
     </>
   );
 }

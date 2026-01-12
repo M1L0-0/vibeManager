@@ -37,20 +37,11 @@ export const StemCell: PamModule = {
             payload: { message: 'Hello from ' + cell.id },
         };
 
-        // Propagate to neighbors
-        const neighbors = getNeighbors(cell.coord);
-        neighbors.forEach((neighborCoord) => {
-            const neighborId = hexToId(neighborCoord);
-            const neighborCell = useGridStore.getState().getCellAt(neighborCoord);
-
-            if (neighborCell) {
-                console.log(`📡 Signal sent to neighbor: ${neighborId}`);
-                // Add signal to neighbor's queue - onSignal will handle activity
-                const updatedSignals = [...neighborCell.signals, signal];
-                useGridStore.getState().updateCell(neighborId, {
-                    signals: updatedSignals,
-                });
-            }
+        // Propagate to neighbors using centralized helper
+        useGridStore.getState().propagateSignal(cell.id, signal, {
+            speed: 5.0, // Standard pulse speed
+            color: '#8b5cf6', // Purple for stem cell
+            type: 'linear'
         });
 
         // Toggle our own activity (same as receiving a signal)
@@ -87,17 +78,11 @@ export const StemCell: PamModule = {
             // Mark this wave as seen
             cell.state.seenSignals.add(signal.waveId);
 
-            // Propagate wave to neighbors
-            const neighbors = getNeighbors(cell.coord);
-            neighbors.forEach((neighborCoord) => {
-                const neighborId = hexToId(neighborCoord);
-                const neighborCell = useGridStore.getState().getCellAt(neighborCoord);
-
-                if (neighborCell) {
-                    useGridStore.getState().updateCell(neighborId, {
-                        signals: [...neighborCell.signals, signal],
-                    });
-                }
+            // Propagate wave to neighbors using centralized helper
+            useGridStore.getState().propagateSignal(cell.id, signal, {
+                speed: 10.0,
+                color: '#06b6d4',
+                type: 'arc'
             });
 
             // Visual feedback - brief flash when wave passes through

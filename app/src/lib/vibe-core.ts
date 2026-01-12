@@ -20,6 +20,20 @@ export interface Signal {
 }
 
 /**
+ * Particle - Visual representation of a traveling signal
+ */
+export interface Particle {
+    id: string;
+    sourceId: string;
+    targetId: string;
+    signal: Signal; // The payload being carried
+    progress: number; // 0.0 to 1.0
+    speed: number; // units per second (1.0 = 1 hex/sec)
+    color: string;
+    type: 'linear' | 'arc' | 'wobble'; // Movement pattern
+}
+
+/**
  * PamDNA - The genetic blueprint of a cell module
  */
 export interface PamDNA {
