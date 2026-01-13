@@ -59,8 +59,9 @@ export const StemCell: PamModule = {
     },
 
     onSignal: (cell: Cell, signal: Signal) => {
-        console.log('📨 Stem Cell received signal:', signal);
+        // console.log(`🌱 Stem Cell ${cell.id} received signal:`, signal);
 
+        // Visual reaction (optional)
         // Handle wave propagation (independent of command)
         if (signal.type === 'wave') {
             const propagated = handleStandardWavePropagation(cell, signal);

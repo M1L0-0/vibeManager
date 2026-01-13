@@ -22,6 +22,7 @@ export interface Signal {
     sourceId: string;
     timestamp: number;
     waveId?: string; // For wave propagation - ensures once-only processing
+    sourceGroupId?: string; // For group immunity
 }
 
 /**
@@ -58,6 +59,7 @@ export interface PamState {
     activity: number; // 0-1, for pulse animation
     data?: Record<string, any>; // Module-specific data
     seenSignals?: Set<string>; // Track processed signal IDs to prevent duplicates/loops
+    groupId?: string; // ID of the group this cell belongs to (for clustering)
 }
 
 /**

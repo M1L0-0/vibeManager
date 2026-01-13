@@ -1,6 +1,7 @@
 import { Cell } from '@/lib/vibe-core';
 import { ChannelSelector } from '@/components/ui/ChannelSelector';
 import { DirectionSelector } from '@/components/ui/DirectionSelector';
+import { StructureEditor } from '@/components/ui/StructureEditor';
 import { TimePicker } from '@/components/ui/TimePicker';
 
 interface Props {
@@ -36,24 +37,30 @@ export function WaveConfig({ cell, updateCell }: Props) {
                     Signal Direction
                 </label>
                 <div className="bg-gray-700/30 p-4 rounded-xl flex justify-center">
-                    <DirectionSelector
-                        value={cell.state.data?.directions || [0, 1, 2, 3, 4, 5]}
-                        onChange={(newDirs: number[]) => {
-                            updateCell(cell.id, {
-                                state: {
-                                    ...cell.state,
-                                    data: {
-                                        ...cell.state.data,
-                                        directions: newDirs
+                    {cell.state.groupId ? (
+                        <StructureEditor cell={cell} updateCell={updateCell} />
+                    ) : (
+                        <DirectionSelector
+                            value={cell.state.data?.directions || [0, 1, 2, 3, 4, 5]}
+                            onChange={(newDirs: number[]) => {
+                                updateCell(cell.id, {
+                                    state: {
+                                        ...cell.state,
+                                        data: {
+                                            ...cell.state.data,
+                                            directions: newDirs
+                                        }
                                     }
-                                }
-                            });
-                        }}
-                    />
+                                });
+                            }}
+                        />
+                    )}
                 </div>
-                <p className="text-xs text-gray-500 mt-2 text-center">
-                    Click segments to toggle signal output faces.
-                </p>
+                {!cell.state.groupId && (
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                        Click segments to toggle signal output faces.
+                    </p>
+                )}
             </div>
 
             <div>
@@ -100,8 +107,8 @@ export function WaveConfig({ cell, updateCell }: Props) {
                         <label
                             key={cmd.id}
                             className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${(cell.state.data?.command || 'TRIGGER') === cmd.id
-                                    ? 'bg-cyan-900/40 border-cyan-500/50'
-                                    : 'bg-gray-700/30 border-transparent hover:bg-gray-700/50 hover:border-gray-600'
+                                ? 'bg-cyan-900/40 border-cyan-500/50'
+                                : 'bg-gray-700/30 border-transparent hover:bg-gray-700/50 hover:border-gray-600'
                                 }`}
                         >
                             <input
@@ -135,8 +142,8 @@ export function WaveConfig({ cell, updateCell }: Props) {
                                 </div>
                             </div>
                             <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${(cell.state.data?.command || 'TRIGGER') === cmd.id
-                                    ? 'border-cyan-500'
-                                    : 'border-gray-600'
+                                ? 'border-cyan-500'
+                                : 'border-gray-600'
                                 }`}>
                                 {(cell.state.data?.command || 'TRIGGER') === cmd.id && (
                                     <div className="w-2 h-2 rounded-full bg-cyan-500" />

@@ -5,7 +5,7 @@
 'use client';
 
 import { useToolStore } from '@/store/tool-store';
-import { Hand, Search, Dna, Eye } from 'lucide-react';
+import { Hand, Search, Dna, Eye, Link } from 'lucide-react';
 
 export function ToolSelector() {
     const { currentTool, setTool } = useToolStore();

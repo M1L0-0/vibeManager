@@ -27,19 +27,28 @@ export function handleStandardWavePropagation(
     // Validate signal type
     if (signal.type !== 'wave' || !signal.waveId) return false;
 
-    // Check deduplication
-    const seenSignals = cell.state.seenSignals || new Set<string>();
-
-    // If not already mutable Set, make it one (though usually it comes from store as immutable, so we clone)
-    // Actually, in the store we usually clone the whole cell state. 
-    // Here we are modifying a local reference before sending to updateCell?
-    // Wait, we can't mutate `cell.state.seenSignals` directly if it's from the store.
+    // --- CRITICAL FIX: Fetch fresh state to prevent stale-reference deduplication failure ---
+    const freshCell = useGridStore.getState().cells.get(cell.id) || cell;
+    const seenSignals = freshCell.state.seenSignals || new Set<string>();
 
     if (seenSignals.has(signal.waveId)) {
         return false;
     }
 
+    // Check Group Immunity (don't react to signals from own group)
+    if (cell.state.groupId && signal.sourceGroupId === cell.state.groupId) {
+        return false;
+    }
+
     // Mark as seen
+    // FORCE MUTATION on the fresh object reference to ensure synchronous consistency in this tick
+    if (freshCell.state.seenSignals) {
+        freshCell.state.seenSignals.add(signal.waveId);
+    } else {
+        freshCell.state.seenSignals = new Set([signal.waveId]);
+    }
+
+    // Also create new Set for safe React update
     const newSeenSignals = new Set(seenSignals);
     newSeenSignals.add(signal.waveId);
 
@@ -90,6 +99,15 @@ export function handleStandardWavePropagation(
             seenSignals: newSeenSignals
         }
     });
+
+    // Auto-reset activity after delay to allow visual pulse without storing every frame
+    setTimeout(() => {
+        useGridStore.getState().updateCell(cell.id, {
+            state: {
+                activity: 0
+            }
+        });
+    }, 300);
 
     return true;
 }

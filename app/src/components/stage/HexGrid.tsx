@@ -11,6 +11,7 @@ import { Cell } from '@/lib/vibe-core';
 import { getPamModule } from '@/pams/registry';
 import { GenomeInspector } from '../ui/GenomeInspector';
 import { useState } from 'react';
+import { getNeighbors } from '@/core/grid/hex';
 
 export function HexGrid() {
     const cellsMap = useGridStore((state) => state.cells);
@@ -21,10 +22,12 @@ export function HexGrid() {
     const spawnCell = useGridStore((state) => state.spawnCell);
     const killCell = useGridStore((state) => state.killCell);
     const updateCell = useGridStore((state) => state.updateCell);
+    const mergeCells = useGridStore((state) => state.mergeCells);
     const getCellAt = useGridStore((state) => state.getCellAt);
 
     // const [inspectingCell, setInspectingCell] = useState<Cell | null>(null);
     const [draggingCell, setDraggingCell] = useState<Cell | null>(null);
+    const [glueSource, setGlueSource] = useState<string | null>(null);
 
     const handleCellClick = (cell: Cell) => {
         // Genesis Tool - Transplant Mode (do nothing on click, only drag-drop)
@@ -52,6 +55,26 @@ export function HexGrid() {
 
         if (currentTool === 'inspect') {
             useToolStore.getState().setInspectingCell(cell.id);
+            return;
+        }
+
+        if (currentTool === 'genesis' && editorMode === 'glue') {
+            if (!glueSource) {
+                // Select first cell
+                console.log(`🔗 Glue: Selected source ${cell.id}`);
+                setGlueSource(cell.id);
+            } else {
+                // Select second cell & merge
+                if (glueSource === cell.id) {
+                    // Deselect
+                    setGlueSource(null);
+                    return;
+                }
+
+                console.log(`🔗 Glue: Merging ${glueSource} + ${cell.id}`);
+                mergeCells(glueSource, cell.id);
+                setGlueSource(null);
+            }
             return;
         }
 
@@ -152,16 +175,26 @@ export function HexGrid() {
                 viewBox="-400 -400 800 800"
             >
                 <g id="grid-container">
-                    {cells.map((cell) => (
-                        <HexCell
-                            key={cell.id}
-                            cell={cell}
-                            onClick={handleCellClick}
-                            onRightClick={handleCellRightClick}
-                            onMouseDown={handleCellMouseDown}
-                            onMouseUp={handleCellMouseUp}
-                        />
-                    ))}
+                    {cells.map((cell) => {
+                        // Calculate connected sides for group rendering
+                        const neighborCoords = getNeighbors(cell.coord);
+                        const connectedSides = neighborCoords.map(nCoord => {
+                            const nCell = getCellAt(nCoord);
+                            return !!(cell.state.groupId && nCell && nCell.state.groupId === cell.state.groupId);
+                        });
+
+                        return (
+                            <HexCell
+                                key={cell.id}
+                                cell={cell}
+                                onClick={handleCellClick}
+                                onRightClick={handleCellRightClick}
+                                onMouseDown={handleCellMouseDown}
+                                onMouseUp={handleCellMouseUp}
+                                connectedSides={connectedSides}
+                            />
+                        );
+                    })}
                 </g>
             </svg>
 

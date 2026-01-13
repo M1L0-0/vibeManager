@@ -44,6 +44,15 @@ export function CellSelector() {
                     >
                         🔬 Transplant
                     </button>
+                    <button
+                        onClick={() => setEditorMode('glue')}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${editorMode === 'glue'
+                            ? 'bg-purple-600 text-white shadow-lg'
+                            : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
+                            }`}
+                    >
+                        🔗 Glue
+                    </button>
                 </div>
 
                 {/* Divider */}

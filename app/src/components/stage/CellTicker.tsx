@@ -33,89 +33,98 @@ export function CellTicker() {
         let animationFrameId: number;
 
         const tick = () => {
-            const state = useSimulationStore.getState();
+            try {
+                const state = useSimulationStore.getState();
 
-            if (!state.isPlaying) {
-                // If paused, just keep looping but don't advance physics
-                lastTime = Date.now(); // Reset time so we don't jump when resuming
-                animationFrameId = requestAnimationFrame(tick);
-                return;
-            }
+                if (!state.isPlaying) {
+                    // If paused, just keep looping but don't advance physics
+                    lastTime = Date.now(); // Reset time so we don't jump when resuming
+                    animationFrameId = requestAnimationFrame(tick);
+                    return;
+                }
 
-            const now = Date.now();
-            let deltaTime = (now - lastTime) / 1000; // Convert to seconds
-            lastTime = now;
+                const now = Date.now();
+                let deltaTime = (now - lastTime) / 1000; // Convert to seconds
+                lastTime = now;
 
-            // Apply simulation speed (Time Scale) ONLY if we are in Visualizer mode
-            const currentTool = useToolStore.getState().currentTool;
-            if (currentTool === 'visualizer') {
-                deltaTime *= state.simulationSpeed;
-            } else {
-                // Force 1.0x speed when not in visualizer (e.g. Hand, Genesis)
-                // This ensures "normal" physics for interaction
-                deltaTime *= 1.0;
-            }
+                // Apply simulation speed (Time Scale) ONLY if we are in Visualizer mode
+                const currentTool = useToolStore.getState().currentTool;
+                if (currentTool === 'visualizer') {
+                    deltaTime *= state.simulationSpeed;
+                } else {
+                    // Force 1.0x speed when not in visualizer (e.g. Hand, Genesis)
+                    // This ensures "normal" physics for interaction
+                    deltaTime *= 1.0;
+                }
 
-            // debugging/stats
-            state.incrementTick();
+                // debugging/stats
+                state.incrementTick();
 
-            const gridStore = useGridStore.getState();
+                const gridStore = useGridStore.getState();
 
-            // --- Particle Physics Step (Signal Travel) ---
-            if (gridStore.particles.length > 0) {
-                gridStore.updateParticles((particles) => {
-                    const nextParticles: Particle[] = [];
+                // --- Particle Physics Step (Signal Travel) ---
+                if (gridStore.particles.length > 0) {
+                    gridStore.updateParticles((particles) => {
+                        const nextParticles: Particle[] = [];
 
-                    particles.forEach(p => {
-                        // Move particle
-                        p.progress += (deltaTime * p.speed);
+                        particles.forEach(p => {
+                            // Move particle
+                            p.progress += (deltaTime * p.speed);
 
-                        if (p.progress >= 1.0) {
-                            // Arrival! Deliver signal to target
-                            // Use atomic delivery to prevent race conditions with stale state
-                            gridStore.deliverSignal(p.targetId, p.signal);
-                        } else {
-                            // Keep flying
-                            nextParticles.push(p);
-                        }
+                            if (p.progress >= 1.0) {
+                                // Arrival! Deliver signal to target
+                                // Use atomic delivery to prevent race conditions with stale state
+                                gridStore.deliverSignal(p.targetId, p.signal);
+                            } else {
+                                // Keep flying
+                                nextParticles.push(p);
+                            }
+                        });
+
+                        return nextParticles;
                     });
+                }
 
-                    return nextParticles;
+                // --- Cellular Automata Step ---
+                // Use getAllCells to ensure we have fresh data
+                const cells = gridStore.getAllCells();
+
+                // Call onTick for each cell that has it
+                cells.forEach((cell) => {
+                    const pamModule = PAM_REGISTRY[cell.dna.id];
+                    if (pamModule?.onTick) {
+                        pamModule.onTick(cell, deltaTime);
+                    }
+
+                    // Process pending signals (reception)
+                    if (cell.signals.length > 0 && pamModule?.onSignal) {
+                        // if (cell.signals.length > 1) console.log(`Traffic: Cell ${cell.id} processing ${cell.signals.length} signals`);
+
+                        cell.signals.forEach((signal) => {
+                            // Module-specific signal handling (safe)
+                            pamModule.onSignal(cell, signal);
+                        });
+
+                        // Clear processed signals
+                        gridStore.updateCell(cell.id, {
+                            signals: [],
+                        });
+                    }
+
                 });
+
+                if (state.tickCount % 60 === 0) {
+                    // console.log(`Tick ${state.tickCount}: ${cells.length} cells, ${gridStore.particles.length} particles.`);
+                }
+
+                animationFrameId = requestAnimationFrame(tick);
+            } catch (e) {
+                console.error("Critical Ticker Error:", e);
+                // Recover from error by continuing loop? 
+                // Or stop? If we keep going we might spam errors.
+                // Let's stop to be safe if it's critical.
+                // animationFrameId = requestAnimationFrame(tick);
             }
-
-            // --- Cellular Automata Step ---
-            // Use getAllCells to ensure we have fresh data
-            const cells = gridStore.getAllCells();
-
-            // Call onTick for each cell that has it
-            cells.forEach((cell) => {
-                const pamModule = PAM_REGISTRY[cell.dna.id];
-                if (pamModule?.onTick) {
-                    pamModule.onTick(cell, deltaTime);
-                }
-
-                // Process pending signals (reception)
-                if (cell.signals.length > 0 && pamModule?.onSignal) {
-                    cell.signals.forEach((signal) => {
-                        // Generic command handling
-                        if (signal.command === 'trigger_default' && pamModule.onClick) {
-                            // console.log(`⚡ Executing default behavior for ${cell.id} via command`);
-                            pamModule.onClick(cell);
-                        }
-
-                        // Module-specific signal handling
-                        pamModule.onSignal(cell, signal);
-                    });
-
-                    // Clear processed signals
-                    gridStore.updateCell(cell.id, {
-                        signals: [],
-                    });
-                }
-            });
-
-            animationFrameId = requestAnimationFrame(tick);
         };
 
         animationFrameId = requestAnimationFrame(tick);

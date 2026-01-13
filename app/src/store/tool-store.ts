@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import { PamDNA } from '@/lib/vibe-core';
 
 export type Tool = 'hand' | 'inspect' | 'genesis' | 'visualizer';
-export type EditorMode = 'spawn' | 'transplant';
+export type EditorMode = 'spawn' | 'transplant' | 'glue';
 
 interface ToolState {
     currentTool: Tool;
