@@ -7,16 +7,10 @@ import { PamModule, Cell, Signal } from '@/lib/vibe-core';
 import { useGridStore } from '@/store/grid-store';
 import { getNeighbors, hexToId } from '@/core/grid/hex';
 import { handleStandardWavePropagation } from '@/core/grid/propagation';
+import { StemDNA } from '@/pams/dna-catalog';
 
 export const StemCell: PamModule = {
-    dna: {
-        id: 'stem',
-        name: 'Stem Cell',
-        version: '1.0.0',
-        color: '#8b5cf6', // Purple
-        icon: 'Circle',
-        description: 'The primordial cell - empty and full of potential',
-    },
+    dna: StemDNA,
 
     onSpawn: (cell: Cell) => {
         // Initialize seen waves tracking

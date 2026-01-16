@@ -6,7 +6,7 @@ import { PamModule, Cell, Signal } from '@/lib/vibe-core';
 import { useGridStore } from '@/store/grid-store';
 import { getNeighbors, hexToId } from '@/core/grid/hex';
 import { handleStandardWavePropagation } from '@/core/grid/propagation';
-
+import { WaveDNA } from '@/pams/dna-catalog';
 import { WaveConfig } from './Config';
 
 // Standalone handler for triggering a new wave
@@ -90,14 +90,7 @@ const onWaveClick = (cellArgument: Cell) => {
 };
 
 export const WaveCell: PamModule = {
-    dna: {
-        id: 'wave',
-        name: 'Wave Cell',
-        version: '1.0.0',
-        color: '#06b6d4', // Cyan - represents water/waves
-        icon: 'Waves',
-        description: 'Emits propagating waves that ripple across connected cells',
-    },
+    dna: WaveDNA,
 
     configComponent: WaveConfig,
 

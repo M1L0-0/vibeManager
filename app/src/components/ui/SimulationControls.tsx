@@ -16,11 +16,13 @@ export function SimulationControls() {
         simulationSpeed,
         setSpeed,
         incrementTick,
-        showParticles,
-        toggleParticles
+        // showParticles, // Removed from sim store
+        // toggleParticles // Removed from sim store
     } = useSimulationStore();
 
-    const { setTool } = useToolStore();
+    const setTool = useToolStore((state) => state.setToolHand); // Not used for toggle anymore
+    const { toggleSynapticVision, view } = useToolStore();
+    const showParticles = view.showSynapticVision;
 
     return (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 p-2 bg-black/80 backdrop-blur-md rounded-full border border-white/10 shadow-2xl z-50">
@@ -41,12 +43,7 @@ export function SimulationControls() {
             <button
                 onClick={() => {
                     if (isPlaying) togglePlay();
-                    incrementTick(); // This triggers one frame in ticker technically but we need a better "Force Step"
-                    // Actually Ticker runs on requestAnimationFrame. Logic needs to handle "force step".
-                    // For now, let's just leave it as is or implement proper stepping.
-                    // The current incrementTick just bumps the counter, it doesn't force a physics step if paused.
-                    // We need a refactor for true "Step". 
-                    // Let's disable for now or map to briefly playing.
+                    incrementTick();
                 }}
                 className="p-2 text-white/50 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 disabled={isPlaying}
@@ -77,12 +74,7 @@ export function SimulationControls() {
 
             {/* Toggle Synaptic Vision */}
             <button
-                onClick={() => {
-                    toggleParticles();
-                    if (!showParticles) {
-                        setTool('hand');
-                    }
-                }}
+                onClick={toggleSynapticVision}
                 className={cn(
                     "p-2 rounded-full transition-all",
                     showParticles ? "text-cyan-400 bg-cyan-400/10" : "text-white/50 hover:text-white"

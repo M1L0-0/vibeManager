@@ -34,11 +34,12 @@ export function StructureEditor({ cell, updateCell }: Props) {
     const ORIGIN_X = 150;
     const ORIGIN_Y = 150;
 
-    // Helper: Axial to Pixel, simplified for visualizer
-    // Hex to Pixel: x = size * (3/2 * q), y = size * (sqrt(3)/2 * q  +  sqrt(3) * r)
+    // Helper: Axial to Pixel (Pointy-Top, matching core logic)
     const hexToPixel = (q: number, r: number) => {
-        const x = HEX_SIZE * (3 / 2 * q);
-        const y = HEX_SIZE * (Math.sqrt(3) / 2 * q + Math.sqrt(3) * r);
+        // Core Logic: x = size * (sqrt(3) * q + sqrt(3)/2 * r)
+        //             y = size * (3/2 * r)
+        const x = HEX_SIZE * (Math.sqrt(3) * q + (Math.sqrt(3) / 2) * r);
+        const y = HEX_SIZE * ((3 / 2) * r);
         return { x, y };
     };
 

@@ -5,6 +5,9 @@
 import { PamModule, Cell, Signal } from '@/lib/vibe-core';
 import { useGridStore } from '@/store/grid-store';
 import { getNeighbors, hexToId } from '@/core/grid/hex';
+import { TimerConfig } from './Config';
+import { handleStandardWavePropagation } from '@/core/grid/propagation';
+import { TimerDNA } from '@/pams/dna-catalog';
 
 interface TimerData {
     timeRemaining: number; // in seconds
@@ -16,18 +19,8 @@ interface TimerData {
     paused: boolean; // Manually paused state
 }
 
-import { TimerConfig } from './Config';
-import { handleStandardWavePropagation } from '@/core/grid/propagation';
-
 export const TimerCell: PamModule = {
-    dna: {
-        id: 'timer',
-        name: 'Timer Cell',
-        version: '1.0.0',
-        color: '#f59e0b', // Amber
-        icon: 'Clock',
-        description: 'Triggers signals after a delay',
-    },
+    dna: TimerDNA,
 
     configComponent: TimerConfig,
 

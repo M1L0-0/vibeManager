@@ -21,7 +21,13 @@ import { CellTicker } from '@/components/stage/CellTicker';
 
 export default function Home() {
   const spawnCell = useGridStore((state) => state.spawnCell);
-  const currentTool = useToolStore((state) => state.currentTool);
+
+  // FSM Selectors
+  const interaction = useToolStore((state) => state.interaction);
+  const clearInspection = useToolStore((state) => state.clearInspection);
+
+  const isGenesis = interaction.type.startsWith('GENESIS');
+  const inspectingCellId = interaction.type === 'INSPECT_IDLE' ? interaction.targetId : null;
 
   useEffect(() => {
     // Spawn initial cells in a hexagonal pattern
@@ -48,10 +54,6 @@ export default function Home() {
     });
   }, [spawnCell]);
 
-  const inspectingCellId = useToolStore((state) => state.inspectingCell);
-  const setInspectingCell = useToolStore((state) => state.setInspectingCell);
-  const getCellAt = useGridStore((state) => state.getCellAt);
-
   // Retrieve the actual cell object if we are inspecting one
   // We need to look it up from the grid store using the ID
   const inspectingCell = inspectingCellId ? useGridStore.getState().cells.get(inspectingCellId) : null;
@@ -60,15 +62,16 @@ export default function Home() {
     <>
       <CellTicker />
       <ToolSelector />
-      {currentTool === 'genesis' && <CellSelector />}
-      {currentTool === 'visualizer' && <SimulationControls />}
+      {isGenesis && <CellSelector />}
+      {/* SimulationControls always visible now for better UX, or could toggle with Vision */}
+      <SimulationControls />
       <Viewport />
 
       {/* Global Overlays */}
       {inspectingCell && (
         <GenomeInspector
           cell={inspectingCell}
-          onClose={() => setInspectingCell(null)}
+          onClose={() => clearInspection()}
         />
       )}
     </>

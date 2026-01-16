@@ -12,8 +12,7 @@ import { hexToPixel } from '@/core/grid/hex';
 
 export function SignalOverlay() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const { showParticles } = useSimulationStore();
-    const currentTool = useToolStore((state) => state.currentTool);
+    const showParticles = useToolStore((state) => state.view.showSynapticVision);
     const cells = useGridStore((state) => state.cells);
     const particles = useGridStore((state) => state.particles);
 
@@ -26,26 +25,10 @@ export function SignalOverlay() {
 
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
-
-        // Resize canvas to match window/viewport (assuming full screen for now)
-        // Ideally checking parent container would be better but fixed size works for prototype
-        // Actually, since this is inside the viewport, it should be large enough?
-        // Wait, Viewport transforms the container. If this is *inside* viewport content,
-        // it needs to be the size of the *content*, not the screen.
-        // But Viewport uses infinite canvas logic.
-        // If we place this alongside HexGrid in the transform container, it matches coordinate space.
-        // We'll trust the parent to size us or we size to a large enough area?
-        // Let's assume this is placed INSIDE the transform container, so 0,0 is q=0,r=0 center.
-
-        // Actually, standard HTML canvas needs explicit width/height in pixels.
-        // We might need to handle this carefully.
-        // For V1, let's assume a fixed large size centered on 0,0?
-        // OR, we can just use SVG? SVG is easier for coordinate systems.
-        // Let's switch to SVG.
     }, [showParticles, particles, cells]);
 
-    // Strictly show only in visualizer mode AND if enabled
-    if (currentTool !== 'visualizer' || !showParticles) return null;
+    // Strictly show only if enabled (decoupled from tool)
+    if (!showParticles) return null;
 
     return (
         <svg

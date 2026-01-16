@@ -56,14 +56,24 @@ export const HexCell = memo(function HexCell({
     return (
         <motion.g
             transform={`translate(${position.x}, ${position.y})`}
-            onClick={() => onClick(cell)}
-            onMouseDown={() => onMouseDown?.(cell)}
-            onMouseUp={() => onMouseUp?.(cell)}
+            onClick={(e) => {
+                e.stopPropagation();
+                onClick(cell);
+            }}
+            onMouseDown={(e) => {
+                e.stopPropagation();
+                onMouseDown?.(cell);
+            }}
+            onMouseUp={(e) => {
+                e.stopPropagation();
+                onMouseUp?.(cell);
+            }}
             onContextMenu={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 onRightClick?.(cell);
             }}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', userSelect: 'none' }}
         >
             {/* Cell body */}
             {/* Cell body - background only */}
