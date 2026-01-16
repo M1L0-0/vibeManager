@@ -151,19 +151,7 @@ export const TimerCell: PamModule = {
     },
 
     onSignal: (cell: Cell, signal: Signal) => {
-        // --- Deduplication Logic ---
-        if (signal.waveId) {
-            if (!cell.state.seenSignals) {
-                cell.state.seenSignals = new Set<string>();
-            }
-            if (cell.state.seenSignals.has(signal.waveId)) {
-                return;
-            }
-            cell.state.seenSignals.add(signal.waveId);
-            useGridStore.getState().updateCell(cell.id, {
-                state: { ...cell.state, seenSignals: cell.state.seenSignals }
-            });
-        }
+
 
         let commandHandled = false;
 

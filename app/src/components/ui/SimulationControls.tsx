@@ -7,6 +7,7 @@
 import { Play, Pause, FastForward, SkipForward, Eye, EyeOff } from 'lucide-react';
 import { useSimulationStore } from '@/store/simulation-store';
 import { cn } from '@/lib/utils';
+import { useToolStore } from '@/store/tool-store';
 
 export function SimulationControls() {
     const {
@@ -18,6 +19,8 @@ export function SimulationControls() {
         showParticles,
         toggleParticles
     } = useSimulationStore();
+
+    const { setTool } = useToolStore();
 
     return (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 p-2 bg-black/80 backdrop-blur-md rounded-full border border-white/10 shadow-2xl z-50">
@@ -74,7 +77,12 @@ export function SimulationControls() {
 
             {/* Toggle Synaptic Vision */}
             <button
-                onClick={toggleParticles}
+                onClick={() => {
+                    toggleParticles();
+                    if (!showParticles) {
+                        setTool('hand');
+                    }
+                }}
                 className={cn(
                     "p-2 rounded-full transition-all",
                     showParticles ? "text-cyan-400 bg-cyan-400/10" : "text-white/50 hover:text-white"

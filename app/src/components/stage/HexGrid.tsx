@@ -26,10 +26,20 @@ export function HexGrid() {
     const getCellAt = useGridStore((state) => state.getCellAt);
 
     // const [inspectingCell, setInspectingCell] = useState<Cell | null>(null);
-    const [draggingCell, setDraggingCell] = useState<Cell | null>(null);
-    const [glueSource, setGlueSource] = useState<string | null>(null);
+    // Local state removed - moved to tool-store to fix stale closure issues with memoized HexCells
+    // const [draggingCell, setDraggingCell] = useState<Cell | null>(null);
+    // const [glueSource, setGlueSource] = useState<string | null>(null);
 
     const handleCellClick = (cell: Cell) => {
+        const {
+            currentTool,
+            editorMode,
+            selectedCellDNA,
+            glueSource,
+            setGlueSource,
+            setInspectingCell // Use store action directly
+        } = useToolStore.getState();
+
         // Genesis Tool - Transplant Mode (do nothing on click, only drag-drop)
         if (currentTool === 'genesis' && editorMode === 'transplant') {
             return; // Don't trigger onClick in transplant mode
@@ -54,7 +64,7 @@ export function HexGrid() {
         }
 
         if (currentTool === 'inspect') {
-            useToolStore.getState().setInspectingCell(cell.id);
+            setInspectingCell(cell.id);
             return;
         }
 
@@ -86,6 +96,7 @@ export function HexGrid() {
     };
 
     const handleCellMouseDown = (cell: Cell) => {
+        const { currentTool, editorMode, setDraggingCell } = useToolStore.getState();
         // Genesis Tool - Transplant Mode
         if (currentTool === 'genesis' && editorMode === 'transplant') {
             setDraggingCell(cell);
@@ -93,6 +104,7 @@ export function HexGrid() {
     };
 
     const handleCellMouseUp = (targetCell: Cell) => {
+        const { currentTool, editorMode, draggingCell, setDraggingCell } = useToolStore.getState();
         // Genesis Tool - Transplant Mode
         if (currentTool === 'genesis' && editorMode === 'transplant' && draggingCell) {
             if (draggingCell.id === targetCell.id) {
