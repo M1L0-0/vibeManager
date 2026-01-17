@@ -48,12 +48,21 @@ export function CellTicker() {
                 lastTime = now;
 
                 // Apply simulation speed (Time Scale) ONLY if we are in Visualizer mode
-                const currentTool = useToolStore.getState().currentTool;
-                if (currentTool === 'visualizer') {
+                // Apply simulation speed (Time Scale) IF Synaptic Vision is ON
+                // OR if we decide global speed should always apply? 
+                // User requirement says "speed modifier in synaptic vision mode is broken", implying it's linked.
+                // But logic-wise, speed should probably apply always if the controls are visible?
+                // For now, let's link it to the vision toggle as requested.
+                const view = useToolStore.getState().view;
+
+                // Allow speed mod if Synaptic Vision is ON *OR* if we just want global control.
+                // Previous logic was specific to 'visualizer' tool. 
+                // Given Sim Controls are now always visible, maybe speed should always apply?
+                // But the user specifically mentioned "in synaptic vision mode".
+                // Let's stick to: If Vision is ON, use speed. If OFF, run real-time (1.0).
+                if (view.showSynapticVision) {
                     deltaTime *= state.simulationSpeed;
                 } else {
-                    // Force 1.0x speed when not in visualizer (e.g. Hand, Genesis)
-                    // This ensures "normal" physics for interaction
                     deltaTime *= 1.0;
                 }
 

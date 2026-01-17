@@ -11,12 +11,15 @@ The architecture emphasizes a **hybrid approach**:
 
 ```mermaid
 graph TD
-    User[User Interaction] --> Tools[Toolbar / Tools]
-    Tools --> Store[Grid Store (Zustand)]
-    Store --> Grid[Hex Grid Renderer]
-    Store --> GameLoop[Simulation Loop]
+    User[User Interaction] --> Tools[Tools (FSM)]
+    Tools --> FSM[Tool Store (Interaction State)]
+    Tools --> View[Tool Store (View State)]
+    FSM --> GridStore[Grid Store (Zustand)]
+    View --> GridStore
+    GridStore --> Grid[Hex Grid Renderer]
+    GridStore --> GameLoop[Simulation Loop]
     GameLoop --> Propagation[Signal System]
-    Propagation --> Store
+    Propagation --> GridStore
 ```
 
 ## Core Concepts
@@ -26,11 +29,36 @@ We use an **Axial Coordinate System** (`q`, `r`) for the grid. This allows for e
 - **Reference**: [Red Blob Games](https://www.redblobgames.com/grids/hexagons/)
 - **File**: `app/src/core/grid/hex.ts`
 
-### 2. PAM Architecture (Programmable Active Modules)
-Every cell in the grid is an instance of a **PAM**. This is a plugin-like system that defines behavior.
-- **DNA**: Static definition (name, icon, color).
-- **State**: Runtime data (energy, activity, custom data).
-- **Module**: The behavior implementation (`onSignal`, `onTick`).
+### 2. State Management Architecture
+
+We split state management into two primary stores to separate **World State** from **UI/Interaction State**.
+
+#### A. Grid Store (The World)
+Manages the "physical" reality of the simulation.
+- **`cells`**: `Map<string, Cell>` - The biological entities.
+- **`particles`**: `Array<Particle>` - Flying signals.
+- **`physics`**: Movement rules and collision logic.
+
+#### B. Tool Store (The Interface)
+Manages how the user interacts with the world, using a **Finite State Machine (FSM)**.
+
+**Interaction State (`interaction`)**:
+Mutually exclusive modes that define what happens when you click.
+- `HAND_IDLE`: Default pointer. Clicks trigger cell actions.
+- `INSPECT_IDLE`: Clicks open the Genome Inspector.
+- `GENESIS_IDLE`: Spawns new cells (DNA selected).
+- `GENESIS_TRANSPLANT_IDLE`: Drag-and-drop or Click-to-move cells.
+- `GENESIS_GLUING_SOURCE/TARGET`: Connects cells into groups.
+
+**View State (`view`)**:
+Independent toggles that overlay information without changing interaction rules.
+- `showSynapticVision`: Toggles signal particle visibility (and speed controls).
+- (Future): `showHeatmap`, `showGridLines`.
+
+### 3. PAM Architecture (Programmable Active Modules)
+Every cell in the grid is an instance of a **PAM**.
+- **DNA Catalog**: `app/src/pams/dna-catalog.ts` - separating metadata from logic to avoid circular deps.
+- **Modules**: `app/src/pams/*` - The behavior implementation (`onSignal`, `onTick`).
 
 **Structure**:
 ```typescript
@@ -43,13 +71,6 @@ interface PamModule {
 }
 ```
 
-### 3. Signal Propagation
-Communication happens via **Signals**.
-- **Nature**: Discrete packets of data.
-- **Travel**: Propagate from neighbor to neighbor.
-- **Decay**: Signals have limits (range/hops).
-- **Immunity**: Groups can have immunity to their own signals to prevent loops.
-
 ## Data Flow
 
 ### Signal Cycle
@@ -61,25 +82,10 @@ Communication happens via **Signals**.
     - Speed calculation.
 4. **Visuals**: `Particles` are spawned to visualize the travel time.
 5. **Arrival**: When particle reaches target, `onSignal` is called on the target cell.
+6. **Reaction**: The target cell processes the signal and may emit new ones.
 
-```mermaid
-sequenceDiagram
-    participant Source as Source Cell
-    participant Store as Grid Store
-    participant Target as Target Cell
-    
-    Source->>Store: emit signal (Wave)
-    Store->>Store: Calculate Neighbors
-    Store->>Store: Spawn Particles
-    loop Animation
-        Store->>Store: Update Particle Position
-    end
-    Store->>Target: onSignal(Wave)
-    Target->>Target: Process Logic
-    Target->>Store: Emit Next Signal?
-```
-
-## State Management (Zustand)
-We use `zustand` with `immer`-like patterns (creating new Maps) for immutability and React reactivity.
-- **`cells`**: `Map<string, Cell>` - O(1) lookup.
-- **`particles`**: `Array<Particle>` - High frequency updates.
+## Genesis System
+The Genesis Tool is a multi-mode editor:
+1.  **Spawn**: Places new cells (Stem, Timer, Wave).
+2.  **Move (Transplant)**: Swaps two cells' positions + states. Supports both **Drag-and-Drop** and **Click-Pickup-Click-Drop**.
+3.  **Glue**: Merges two adjacent cells into a shared `groupId`, allowing them to share immunity and structure.
