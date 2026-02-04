@@ -1,10 +1,13 @@
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import { useToolStore } from './tool-store';
 import { useGridStore } from './grid-store';
 import { StemCell } from '@/pams/stem';
 
 // Mock Grid Store
+// Check if global jest is available, if not assume standard environment
+declare const jest: any;
+
 jest.mock('./grid-store', () => ({
     useGridStore: {
         getState: jest.fn(),
@@ -29,7 +32,7 @@ describe('ToolStore FSM', () => {
             getCellAt: jest.fn(),
         };
 
-        (useGridStore.getState as jest.Mock).mockReturnValue(mockGridActions);
+        (useGridStore.getState as any).mockReturnValue(mockGridActions);
     });
 
     it('should initialize in HAND_IDLE state', () => {

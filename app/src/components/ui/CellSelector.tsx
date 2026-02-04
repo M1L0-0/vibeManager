@@ -8,6 +8,7 @@ import { useToolStore } from '@/store/tool-store';
 import { REGISTRY, getAllCellTypes } from '@/pams/registry';
 import { cn } from '@/lib/utils';
 import * as LucideIcons from 'lucide-react';
+import { GlassButton, GlassPanel } from './Glass';
 import { Dna, Eraser, Combine, Pointer, Download, Upload } from 'lucide-react';
 
 export function CellSelector() {
@@ -38,7 +39,7 @@ export function CellSelector() {
     };
 
     return (
-        <div className="fixed left-28 top-1/2 -translate-y-1/2 flex flex-col gap-2 bg-gray-900/90 backdrop-blur-sm p-4 rounded-xl border border-gray-700 shadow-2xl z-40 max-h-[80vh] overflow-y-auto w-64 animate-in fade-in slide-in-from-left-4 duration-200">
+        <GlassPanel className="fixed left-28 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-4 z-40 max-h-[80vh] overflow-y-auto w-64 animate-in fade-in slide-in-from-left-4 duration-200">
             <h3 className="text-white font-semibold flex items-center gap-2 pb-2 border-b border-gray-700 mb-2">
                 <Dna size={18} className="text-purple-400" />
                 Genesis Lab
@@ -46,9 +47,8 @@ export function CellSelector() {
 
             {/* Mode Switcher */}
             <div className="flex bg-gray-800 p-1 rounded-lg mb-4">
-                <button
+                <button // Can't use GlassButton easily here due to custom layout/flex? actually we can but specific styles used
                     onClick={() => {
-                        // Default to Stem Cell for Spawn Mode if switching back
                         const stem = REGISTRY['stem'];
                         setToolGenesis(stem.dna);
                     }}
@@ -88,7 +88,6 @@ export function CellSelector() {
                     <div className="text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Available Cells</div>
 
                     {cellTypes.map((pam) => {
-                        // Dynamically resolve icon from Lucide
                         const IconComponent = (pam.dna.icon && (LucideIcons as any)[pam.dna.icon]) || LucideIcons.Circle;
                         const isSelected = activeCellId === pam.dna.id;
 
@@ -125,17 +124,17 @@ export function CellSelector() {
 
             {/* Instructions for other modes */}
             {isTransplantMode && (
-                <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700/50 text-center">
+                <GlassPanel className="bg-gray-800/50 border-gray-700/50 text-center p-4">
                     <Pointer size={32} className="mx-auto text-blue-400 mb-2 opacity-80" />
                     <h4 className="text-sm font-medium text-blue-200 mb-1">Transplant Mode</h4>
                     <p className="text-xs text-gray-400">
                         Drag and drop cells to move them to new locations.
                     </p>
-                </div>
+                </GlassPanel>
             )}
 
             {isGlueMode && (
-                <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700/50 text-center">
+                <GlassPanel className="bg-gray-800/50 border-gray-700/50 text-center p-4">
                     <Combine size={32} className="mx-auto text-green-400 mb-2 opacity-80" />
                     <h4 className="text-sm font-medium text-green-200 mb-1">Glue Mode</h4>
                     <p className="text-xs text-gray-400 mb-2">
@@ -146,8 +145,8 @@ export function CellSelector() {
                             Select second cell...
                         </div>
                     )}
-                </div>
+                </GlassPanel>
             )}
-        </div>
+        </GlassPanel>
     );
 }

@@ -5,8 +5,9 @@
 'use client';
 
 import { useToolStore } from '@/store/tool-store';
-import { Hand, Search, Dna, Eye, Link } from 'lucide-react';
-import { StemDNA } from '@/pams/dna-catalog';
+import { getAllCellTypes } from '@/pams/registry';
+import { GlassButton, GlassPanel } from './Glass';
+import { Hand, Search, Dna, Eye } from 'lucide-react';
 
 export function ToolSelector() {
     const interaction = useToolStore((state) => state.interaction);
@@ -27,8 +28,11 @@ export function ToolSelector() {
         if (toolId === 'hand') setToolHand();
         if (toolId === 'inspect') setToolInspect();
         if (toolId === 'genesis') {
-            // Default to Stem Cell for now
-            setToolGenesis(StemDNA);
+            // Default to first available cell type
+            const firstCell = getAllCellTypes()[0];
+            if (firstCell) {
+                setToolGenesis(firstCell.dna);
+            }
         }
     };
 
@@ -52,25 +56,18 @@ export function ToolSelector() {
     const { toggleSynapticVision, view } = useToolStore();
 
     return (
-        <div className="fixed left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 bg-gray-900/90 backdrop-blur-sm p-3 rounded-xl border border-gray-700 shadow-2xl z-50">
+        <GlassPanel className="fixed left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-3 z-50">
             {tools.map((tool) => {
                 const Icon = tool.icon;
                 const isActive = getActiveTool() === tool.id;
 
                 return (
-                    <button
+                    <GlassButton
                         key={tool.id}
-                        onClick={() => {
-                            handleSelectTool(tool.id);
-                        }}
-                        className={`
-              group relative w-14 h-14 flex items-center justify-center rounded-lg
-              transition-all duration-200
-              ${isActive
-                                ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50'
-                                : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
-                            }
-            `}
+                        onClick={() => handleSelectTool(tool.id)}
+                        isActive={isActive}
+                        activeVariant="purple"
+                        className="group relative w-14 h-14"
                         title={tool.label}
                     >
                         <Icon size={24} />
@@ -79,21 +76,16 @@ export function ToolSelector() {
                             <div className="font-semibold">{tool.label}</div>
                             <div className="text-gray-400 text-xs">{tool.description}</div>
                         </div>
-                    </button>
+                    </GlassButton>
                 );
             })}
 
             {/* Visualizer Separate Toggle */}
-            <button
+            <GlassButton
                 onClick={toggleSynapticVision}
-                className={`
-              group relative w-14 h-14 flex items-center justify-center rounded-lg
-              transition-all duration-200
-              ${view.showSynapticVision
-                        ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/50'
-                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
-                    }
-            `}
+                isActive={view.showSynapticVision}
+                activeVariant="cyan"
+                className="group relative w-14 h-14"
                 title="Synaptic Vision"
             >
                 <Eye size={24} />
@@ -101,7 +93,7 @@ export function ToolSelector() {
                     <div className="font-semibold">Synaptic Vision</div>
                     <div className="text-gray-400 text-xs">Toggle signal overlay</div>
                 </div>
-            </button>
-        </div>
+            </GlassButton>
+        </GlassPanel>
     );
 }

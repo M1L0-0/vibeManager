@@ -111,3 +111,86 @@ export function handleStandardWavePropagation(
 
     return true;
 }
+
+/**
+ * Helper to generate and emit a new signal (Impulse) from a cell.
+ * Handles seenSignals logic, ID generation, and state updates.
+ */
+export function createImpulse(
+    cell: Cell,
+    signalType: string = 'wave',
+    payload: any = {},
+    options: {
+        strength?: number;
+        range?: number;
+        speed?: number; // Override calculated speed
+        color?: string; // Particle color
+        command?: string; // 'TRIGGER', etc
+        inheritLastFired?: boolean; // If true, checks cooldown
+    } = {}
+) {
+    const now = Date.now();
+
+    // Cooldown check
+    if (options.inheritLastFired) {
+        const lastFired = cell.state.data?.lastFired || 0;
+        if (now - lastFired < 150) return;
+    }
+
+    const waveId = `wave-${now}-${Math.random()}`;
+    const delay = cell.state.data?.speedDelay || 0.1;
+    const speed = options.speed || (1 / Math.max(0.01, delay));
+
+    const signal: Signal = {
+        id: `signal-${now}-${Math.random()}`,
+        type: signalType,
+        strength: options.strength || 1.0,
+        sourceId: cell.id,
+        timestamp: now,
+        waveId: waveId,
+        channelId: cell.state.data?.channel || 'universal',
+        range: options.range ?? (cell.state.data?.range !== undefined ? cell.state.data.range : 10),
+        command: options.command as any || cell.state.data?.command,
+        sourceGroupId: cell.state.groupId,
+        speed: speed,
+        payload: {
+            message: 'Impulse',
+            originCell: cell.id,
+            allowedDirections: cell.state.data?.directions || [0, 1, 2, 3, 4, 5],
+            ...payload
+        },
+    };
+
+    // Mark as seen locally
+    const currentSeen = cell.state.seenSignals ? new Set(cell.state.seenSignals) : new Set<string>();
+    currentSeen.add(waveId);
+
+    // Propagate
+    useGridStore.getState().propagateSignal(cell.id, signal, {
+        speed: speed,
+        type: 'arc', // Default
+        directions: signal.payload.allowedDirections,
+        color: options.color
+    });
+
+    // Update State
+    useGridStore.getState().updateCell(cell.id, {
+        state: {
+            activity: 1.0,
+            seenSignals: currentSeen,
+            data: {
+                ...cell.state.data,
+                lastFired: options.inheritLastFired ? now : cell.state.data?.lastFired
+            }
+        },
+    });
+
+    // Auto-reset activity
+    setTimeout(() => {
+        useGridStore.getState().updateCell(cell.id, {
+            state: { activity: 0 }
+        });
+    }, 300);
+
+    return waveId;
+}

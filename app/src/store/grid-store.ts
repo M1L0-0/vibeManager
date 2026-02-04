@@ -349,7 +349,6 @@ export const useGridStore = create<GridState>((set, get) => ({
 
             const newCells = new Map(state.cells);
 
-            // Function to update a cell to the new group
             const addToGroup = (id: string, masterData: any) => {
                 const c = newCells.get(id);
                 if (c) {
@@ -362,7 +361,7 @@ export const useGridStore = create<GridState>((set, get) => ({
                                 ...c.state.data,
                                 ...masterData, // Sync data to match the master
                                 // Keep own directions
-                                directions: c.state.data?.directions || [0, 1, 2, 3, 4, 5]
+                                directions: (c.state.data as any)?.directions || [0, 1, 2, 3, 4, 5]
                             }
                         }
                     });

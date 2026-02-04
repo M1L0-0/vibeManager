@@ -5,7 +5,7 @@
 import { PamModule, Cell, Signal } from '@/lib/vibe-core';
 import { useGridStore } from '@/store/grid-store';
 import { getNeighbors, hexToId } from '@/core/grid/hex';
-import { handleStandardWavePropagation } from '@/core/grid/propagation';
+import { handleStandardWavePropagation, createImpulse } from '@/core/grid/propagation';
 import { WaveDNA } from '@/pams/dna-catalog';
 import { WaveConfig } from './Config';
 
@@ -24,69 +24,11 @@ const onWaveClick = (cellArgument: Cell) => {
 
     console.log('🌊 Wave Cell clicked:', cell.id);
 
-    // Generate unique wave ID
-    const waveId = `wave-${now}-${Math.random()}`;
-
-    // Create wave signal (no command - cells handle waves in onSignal)
-    // Calculate speed from delay (default 0.1s => 10 speed)
-    const delay = cell.state.data?.speedDelay || 0.1;
-    const speed = 1 / Math.max(0.01, delay);
-
-    const signal: Signal = {
-        id: `signal-${now}-${Math.random()}`,
-        type: 'wave',
-        strength: 1.0,
-        sourceId: cell.id,
-        timestamp: now,
-        waveId: waveId,
-        channelId: cell.state.data?.channel || 'universal',
-        range: cell.state.data?.range !== undefined ? cell.state.data.range : 10,
-        command: cell.state.data?.command || 'TRIGGER',
-        sourceGroupId: cell.state.groupId,
-        speed: speed, // Inject speed
-        payload: {
-            message: 'Wave propagating...',
-            originCell: cell.id,
-            allowedDirections: cell.state.data?.directions || [0, 1, 2, 3, 4, 5]
-        },
-    };
-
-    console.log(`🌊 Wave emitted: ${waveId}`);
-
-    // Mark this wave as seen by the source cell (Safely)
-    // Create new set to avoid direct mutation of previous reference
-    const currentSeen = cell.state.seenSignals ? new Set(cell.state.seenSignals) : new Set<string>();
-    currentSeen.add(waveId);
-
-    // Send wave to all neighbors (respecting configured directions)
-    const directions = cell.state.data?.directions || [0, 1, 2, 3, 4, 5];
-
-    useGridStore.getState().propagateSignal(cell.id, signal, {
-        speed: speed,
-        type: 'arc',
-        directions: directions
+    // Use Helper
+    createImpulse(cell, 'wave', { message: 'Wave propagating...' }, {
+        inheritLastFired: true,
+        // Color is optional, helper will fallback or we can defaults
     });
-
-    // Update cell state (Activity + Seen + LastFired)
-    useGridStore.getState().updateCell(cell.id, {
-        state: {
-            activity: 1.0,
-            seenSignals: currentSeen,
-            data: {
-                ...cell.state.data,
-                lastFired: now
-            }
-        },
-    });
-
-    // Auto-reset activity
-    setTimeout(() => {
-        useGridStore.getState().updateCell(cell.id, {
-            state: {
-                activity: 0
-            }
-        });
-    }, 300);
 };
 
 export const WaveCell: PamModule = {

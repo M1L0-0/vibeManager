@@ -6,7 +6,7 @@ import { PamModule, Cell, Signal } from '@/lib/vibe-core';
 import { useGridStore } from '@/store/grid-store';
 import { getNeighbors, hexToId } from '@/core/grid/hex';
 import { TimerConfig } from './Config';
-import { handleStandardWavePropagation } from '@/core/grid/propagation';
+import { handleStandardWavePropagation, createImpulse } from '@/core/grid/propagation';
 import { TimerDNA } from '@/pams/dna-catalog';
 
 interface TimerData {
@@ -99,45 +99,44 @@ export const TimerCell: PamModule = {
             console.log(`⏱️ Timer Cell ${cell.id}: COMPLETED! Sending pulse...`);
             data.isRunning = false;
 
-            // Send pulse to all neighbors
-            const signal: Signal = {
-                id: `timer-signal-${Date.now()}-${Math.random()}`,
-                type: 'timer-pulse',
+            // Send pulse (Impulse)
+            createImpulse(cell, 'timer-pulse', { message: 'Timer completed!' }, {
                 strength: 1.0,
-                sourceId: cell.id,
-                timestamp: Date.now(),
-                payload: { message: 'Timer completed!' },
-            };
-
-            // Send pulse to all neighbors
-            useGridStore.getState().propagateSignal(cell.id, signal, {
                 speed: 5.0,
-                color: '#f59e0b',
-                type: 'linear'
+                color: '#f59e0b'
             });
 
-            // Trigger our own completion pulse
-            useGridStore.getState().updateCell(cell.id, {
-                state: {
-                    ...cell.state,
-                    activity: 1.0,
-                    data,
-                },
-            });
+            // Trigger our own completion pulse (createImpulse handles activity set to 1.0)
 
             // Handle auto-restart and loop modes
+            // We need to fetch fresh data or update what we have.
+            // createImpulse updates cell state activity but doesn't touch data (except lastFired).
+            // So we need to ensure 'isRunning' and 'timeRemaining' are updated.
+
             if (data.autoRestart || data.loop) {
                 console.log(`⏱️ Timer Cell ${cell.id}: Auto-restarting...`);
                 data.timeRemaining = data.maxTime;
+                data.isRunning = data.loop; // loop=true (keep running), autoRestart=true (stop and wait click? or simply reset?) 
+                // "In loop mode, keep running. In autoRestart mode, stop until clicked again" -> logic preserved
 
-                // In loop mode, keep running. In autoRestart mode, stop until clicked again
-                data.isRunning = data.loop;
-
+                // Update cell state with new data
                 useGridStore.getState().updateCell(cell.id, {
                     state: {
                         ...cell.state,
                         data,
                     },
+                });
+            } else {
+                // Even if not restarting, createImpulse sets activity. BUT createImpulse doesn't update 'data' (isRunning=false).
+                // We must ensure the 'data' update happens.
+                // createImpulse does `updateCell` for activity.
+                // We can chain another update, or rely on the previous updates?
+                // Wait, we set data.isRunning=false at line 100.
+                useGridStore.getState().updateCell(cell.id, {
+                    state: {
+                        ...cell.state,
+                        data // Save the isRunning = false change
+                    }
                 });
             }
         }
@@ -233,4 +232,16 @@ export const TimerCell: PamModule = {
             TimerCell.onClick(cell);
         }
     },
+
+    getLabel: (cell: Cell) => {
+        const data = cell.state.data as TimerData;
+        if (data?.timeRemaining !== undefined && !isNaN(data.timeRemaining)) {
+            return data.timeRemaining.toFixed(1);
+        }
+        return (data?.maxTime?.toFixed(1) || '3.0');
+    },
+
+    getRenderDependencies: (cell: Cell) => {
+        return [cell.state.data?.timeRemaining];
+    }
 };

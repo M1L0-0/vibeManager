@@ -48,7 +48,10 @@ Mutually exclusive modes that define what happens when you click.
 - `INSPECT_IDLE`: Clicks open the Genome Inspector.
 - `GENESIS_IDLE`: Spawns new cells (DNA selected).
 - `GENESIS_TRANSPLANT_IDLE`: Drag-and-drop or Click-to-move cells.
-- `GENESIS_GLUING_SOURCE/TARGET`: Connects cells into groups.
+- `GENESIS_DRAGGING`: Currently dragging a cell.
+- `GENESIS_HOLDING`: Holding a cell for click-to-place transplant.
+- `GENESIS_GLUING_SOURCE`: Selecting first cell for glue.
+- `GENESIS_GLUING_TARGET`: Selecting second cell for glue.
 
 **View State (`view`)**:
 Independent toggles that overlay information without changing interaction rules.

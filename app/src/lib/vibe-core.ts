@@ -101,6 +101,19 @@ export interface PamModule {
     onClick?: (cell: Cell) => void;
 
     /**
+     * Optional: Get a short text label to display on the cell (e.g. "3.0" for timer)
+     * This replaces hardcoded rendering logic in HexCell
+     */
+    getLabel?: (cell: Cell) => string;
+
+    /**
+     * Optional: Get custom memoization keys. 
+     * If your cell label depends on specific state.data properties, return them here 
+     * so React knows when to re-render.
+     */
+    getRenderDependencies?: (cell: Cell) => any[];
+
+    /**
      * Optional React Component for configuring this cell in GenomeInspector
      */
     configComponent?: React.ComponentType<{ cell: Cell; updateCell: (id: string, updates: Partial<Cell>) => void }>;
