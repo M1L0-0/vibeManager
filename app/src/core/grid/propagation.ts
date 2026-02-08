@@ -3,7 +3,7 @@ import { useGridStore } from '@/store/grid-store';
 
 interface PropagationOptions {
     defaultDelay?: number; // Default 0.1s
-    visualActivity?: number; // Default 0.8
+    visualActivity?: number | false; // Default 0.8, false to disable
     allowedDirections?: number[]; // Explicit override
     color?: string; // Particle color
 }
@@ -24,8 +24,8 @@ export function handleStandardWavePropagation(
         visualActivity = 0.8
     } = options;
 
-    // Validate signal type
-    if (signal.type !== 'wave' || !signal.waveId) return false;
+    // Validate signal type (must have waveId to support propagation)
+    if (!signal.waveId) return false;
 
     // --- CRITICAL FIX: Fetch fresh state to prevent stale-reference deduplication failure ---
     const freshCell = useGridStore.getState().cells.get(cell.id) || cell;
@@ -92,22 +92,31 @@ export function handleStandardWavePropagation(
     });
 
     // Update Cell State (Visual Feedback + Seen Set)
+    const updates: any = {
+        seenSignals: newSeenSignals
+    };
+
+    if (visualActivity !== false) {
+        updates.activity = visualActivity;
+    }
+
     useGridStore.getState().updateCell(cell.id, {
         state: {
             ...cell.state,
-            activity: visualActivity,
-            seenSignals: newSeenSignals
+            ...updates
         }
     });
 
     // Auto-reset activity after delay to allow visual pulse without storing every frame
-    setTimeout(() => {
-        useGridStore.getState().updateCell(cell.id, {
-            state: {
-                activity: 0
-            }
-        });
-    }, 300);
+    if (visualActivity !== false) {
+        setTimeout(() => {
+            useGridStore.getState().updateCell(cell.id, {
+                state: {
+                    activity: 0
+                }
+            });
+        }, 300);
+    }
 
     return true;
 }
@@ -130,16 +139,23 @@ export function createImpulse(
     } = {}
 ) {
     const now = Date.now();
+    const data = cell.state.data; // StandardCellData properties available here
 
     // Cooldown check
     if (options.inheritLastFired) {
-        const lastFired = cell.state.data?.lastFired || 0;
+        const lastFired = data?.lastFired || 0;
         if (now - lastFired < 150) return;
     }
 
     const waveId = `wave-${now}-${Math.random()}`;
-    const delay = cell.state.data?.speedDelay || 0.1;
+
+    // Physics Resolution: Options > Data > Default
+    const delay = data?.speedDelay || 0.1;
     const speed = options.speed || (1 / Math.max(0.01, delay));
+    const range = options.range ?? (data?.range !== undefined ? data.range : 1); // Default 1 (was 10)
+    const channelId = data?.channel || 'universal';
+    const directions = data?.directions || [0, 1, 2, 3, 4, 5];
+    const command = options.command as any || data?.command;
 
     const signal: Signal = {
         id: `signal-${now}-${Math.random()}`,
@@ -148,15 +164,15 @@ export function createImpulse(
         sourceId: cell.id,
         timestamp: now,
         waveId: waveId,
-        channelId: cell.state.data?.channel || 'universal',
-        range: options.range ?? (cell.state.data?.range !== undefined ? cell.state.data.range : 10),
-        command: options.command as any || cell.state.data?.command,
+        channelId: channelId,
+        range: range,
+        command: command,
         sourceGroupId: cell.state.groupId,
         speed: speed,
         payload: {
             message: 'Impulse',
             originCell: cell.id,
-            allowedDirections: cell.state.data?.directions || [0, 1, 2, 3, 4, 5],
+            allowedDirections: directions,
             ...payload
         },
     };
@@ -169,7 +185,7 @@ export function createImpulse(
     useGridStore.getState().propagateSignal(cell.id, signal, {
         speed: speed,
         type: 'arc', // Default
-        directions: signal.payload.allowedDirections,
+        directions: directions,
         color: options.color
     });
 
@@ -180,12 +196,13 @@ export function createImpulse(
             seenSignals: currentSeen,
             data: {
                 ...cell.state.data,
-                lastFired: options.inheritLastFired ? now : cell.state.data?.lastFired
+                lastFired: options.inheritLastFired ? now : data?.lastFired
             }
         },
     });
 
     // Auto-reset activity
+    // Use data.activityDecay if we want to customize this later, but for now fixed
     setTimeout(() => {
         useGridStore.getState().updateCell(cell.id, {
             state: { activity: 0 }

@@ -4,6 +4,7 @@
  */
 
 import { HexCoord } from '@/core/grid/hex';
+import { ChannelId } from '@/core/grid/channels';
 
 export type SignalCommand = 'TRIGGER' | 'RESET' | 'PAUSE';
 
@@ -54,10 +55,39 @@ export interface PamDNA {
 /**
  * PamState - Runtime state of a cell instance
  */
+/**
+ * StandardCellData - Common properties available to all cells
+ */
+export interface StandardCellData {
+    // Identity & Display
+    label?: string;          // Optional text label override
+    description?: string;    // User notes/annotations
+
+    // Signal Physics
+    channel?: ChannelId;     // Chemical Channel ID
+    range?: number;          // TTL (Time To Live in hops)
+    speedDelay?: number;     // Propagation delay per hop (seconds)
+    activityDecay?: number;  // Visual fade speed (0.0-1.0)
+
+    // Directionality
+    directions?: number[];   // Allowed output directions [0-5]
+
+    // Logic / Neuron State
+    operation?: 'AND' | 'OR' | 'XOR' | 'NAND' | 'NOR' | 'XNOR' | 'NOT'; // Logic Operation
+    currentInputs?: number;  // Buffered input count for logic gates
+
+    // Other common fields
+    lastFired?: number;      // Timestamp of last activation
+    command?: string;        // Signal command payload ('TRIGGER', etc.)
+}
+
+/**
+ * PamState - Runtime state of a cell instance
+ */
 export interface PamState {
     energy: number; // 0-100
     activity: number; // 0-1, for pulse animation
-    data?: Record<string, any>; // Module-specific data
+    data?: Partial<StandardCellData> & Record<string, any>; // Module-specific data + Standard Data
     seenSignals?: Set<string>; // Track processed signal IDs to prevent duplicates/loops
     groupId?: string; // ID of the group this cell belongs to (for clustering)
 }

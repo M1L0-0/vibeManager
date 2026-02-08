@@ -8,6 +8,7 @@ import { Cell } from '@/lib/vibe-core';
 import { X } from 'lucide-react';
 import { useGridStore } from '@/store/grid-store';
 import { REGISTRY } from '@/pams/registry';
+import { StandardConfigSection } from './StandardConfigSection';
 
 interface GenomeInspectorProps {
     cell: Cell;
@@ -81,6 +82,11 @@ export function GenomeInspector({ cell, onClose }: GenomeInspectorProps) {
                                 <span className="text-purple-400">🧬</span>
                                 Genome Configuration
                             </h3>
+
+                            {/* Standard Properties (Available for all cells) */}
+                            <StandardConfigSection cell={liveCell} updateCell={updateCell} />
+
+                            <div className="border-t border-gray-700/50 my-4" />
 
                             {/* Dynamic Config Component */}
                             {(() => {

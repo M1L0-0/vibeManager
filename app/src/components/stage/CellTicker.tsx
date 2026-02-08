@@ -9,17 +9,11 @@ import { Particle } from '@/lib/vibe-core';
 import { useGridStore } from '@/store/grid-store';
 import { useSimulationStore } from '@/store/simulation-store';
 import { useToolStore } from '@/store/tool-store';
-import { StemCell } from '@/pams/stem';
-import { TimerCell } from '@/pams/timer';
-import { WaveCell } from '@/pams/wave';
+import { REGISTRY } from '@/pams/registry';
 
 // Map of PAM IDs to their modules
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const PAM_REGISTRY: Record<string, any> = {
-    'stem': StemCell,
-    'timer': TimerCell,
-    'wave': WaveCell,
-};
+// Now using central registry to ensure all cells (including Neuron) are handled
+const PAM_REGISTRY = REGISTRY;
 
 export function CellTicker() {
     // No hooks here, we use direct store access in the loop to prevent re-renders restarting the loop

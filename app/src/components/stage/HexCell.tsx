@@ -65,6 +65,7 @@ export const HexCell = memo(function HexCell({
                 onRightClick?.(cell);
             }}
             style={{ cursor: 'pointer', userSelect: 'none' }}
+            data-cell-id={cell.id}
         >
             {/* Cell body */}
             {/* Cell body - background only */}

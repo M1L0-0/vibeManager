@@ -58,7 +58,9 @@ export const StemCell: PamModule = {
         // Visual reaction (optional)
         // Handle wave propagation (independent of command)
         if (signal.type === 'wave') {
-            const propagated = handleStandardWavePropagation(cell, signal);
+            const propagated = handleStandardWavePropagation(cell, signal, {
+                visualActivity: false // Disable auto-reset, we manage state manually below
+            });
             if (propagated) {
                 // If it's a new wave, also toggle local activity
                 const currentActivity = cell.state.activity;

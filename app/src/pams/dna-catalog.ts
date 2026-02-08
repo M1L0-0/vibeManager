@@ -33,3 +33,12 @@ export const WaveDNA: PamDNA = {
     icon: 'Activity', // Wave/Pulse icon
     description: 'Propagates signals in a coordinated wave front',
 };
+
+export const NeuronDNA: PamDNA = {
+    id: 'neuron',
+    name: 'Neuron',
+    version: '1.0.0',
+    color: '#10b981', // Emerald
+    icon: 'Network', // Network/Circuit icon
+    description: 'Integrates signals and performs logical operations (AND, OR, XOR)',
+};

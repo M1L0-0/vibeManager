@@ -100,10 +100,11 @@ export const TimerCell: PamModule = {
             data.isRunning = false;
 
             // Send pulse (Impulse)
-            createImpulse(cell, 'timer-pulse', { message: 'Timer completed!' }, {
+            createImpulse(cell, 'wave', { message: 'Timer completed!' }, {
                 strength: 1.0,
                 speed: 5.0,
-                color: '#f59e0b'
+                color: '#f59e0b',
+                command: 'TRIGGER'
             });
 
             // Trigger our own completion pulse (createImpulse handles activity set to 1.0)
@@ -210,15 +211,14 @@ export const TimerCell: PamModule = {
             if (!commandHandled) {
                 const data = cell.state.data as TimerData;
                 if (data) {
-                    if (data.timeRemaining <= 0) {
-                        data.timeRemaining = data.maxTime;
-                        data.isRunning = false;
-                        data.lastTick = Date.now();
-                    } else {
-                        data.isRunning = !data.isRunning;
-                        data.lastTick = Date.now();
-                    }
-                    console.log(`⏱️ Timer Cell ${cell.id} triggered by wave`);
+                    // Logic Update: Always RESET and START on trigger to ensure synchronization
+                    // This allows multi-timer logic circuits to work reliably.
+                    data.timeRemaining = data.maxTime;
+                    data.isRunning = true;
+                    data.lastTick = Date.now();
+
+                    console.log(`⏱️ Timer Cell ${cell.id} RESTARTED by wave (Sync)`);
+
                     useGridStore.getState().updateCell(cell.id, {
                         state: { ...cell.state, data }
                     });

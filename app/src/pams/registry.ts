@@ -7,12 +7,14 @@ import { PamModule } from '@/lib/vibe-core';
 import { StemCell } from '@/pams/stem';
 import { TimerCell } from '@/pams/timer';
 import { WaveCell } from '@/pams/wave';
+import { NeuronCell } from '@/pams/neuron';
 
 // Registry mapping cell ID to PAM module
 export const REGISTRY: Record<string, PamModule> = {
-    'stem': StemCell,
-    'timer': TimerCell,
-    'wave': WaveCell,
+    [StemCell.dna.id]: StemCell,
+    [TimerCell.dna.id]: TimerCell,
+    [WaveCell.dna.id]: WaveCell,
+    [NeuronCell.dna.id]: NeuronCell,
 };
 
 // Get all available cell types as an array (for Genesis Tool)

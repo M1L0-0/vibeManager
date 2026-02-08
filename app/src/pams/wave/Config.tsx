@@ -1,8 +1,4 @@
 import { Cell } from '@/lib/vibe-core';
-import { ChannelSelector } from '@/components/ui/ChannelSelector';
-import { DirectionSelector } from '@/components/ui/DirectionSelector';
-import { StructureEditor } from '@/components/ui/StructureEditor';
-import { TimePicker } from '@/components/ui/TimePicker';
 
 interface Props {
     cell: Cell;
@@ -12,88 +8,6 @@ interface Props {
 export function WaveConfig({ cell, updateCell }: Props) {
     return (
         <div className="space-y-4">
-            <div>
-                <label className="text-sm text-gray-400 block mb-2">
-                    Chemical Channel
-                </label>
-                <ChannelSelector
-                    value={cell.state.data?.channel || 'universal'}
-                    onChange={(newChannel) => {
-                        updateCell(cell.id, {
-                            state: {
-                                ...cell.state,
-                                data: {
-                                    ...cell.state.data,
-                                    channel: newChannel
-                                }
-                            }
-                        });
-                    }}
-                />
-            </div>
-
-            <div>
-                <label className="text-sm text-gray-400 block mb-2">
-                    Signal Direction
-                </label>
-                <div className="bg-gray-700/30 p-4 rounded-xl flex justify-center">
-                    {cell.state.groupId ? (
-                        <StructureEditor cell={cell} updateCell={updateCell} />
-                    ) : (
-                        <DirectionSelector
-                            value={cell.state.data?.directions || [0, 1, 2, 3, 4, 5]}
-                            onChange={(newDirs: number[]) => {
-                                updateCell(cell.id, {
-                                    state: {
-                                        ...cell.state,
-                                        data: {
-                                            ...cell.state.data,
-                                            directions: newDirs
-                                        }
-                                    }
-                                });
-                            }}
-                        />
-                    )}
-                </div>
-                {!cell.state.groupId && (
-                    <p className="text-xs text-gray-500 mt-2 text-center">
-                        Click segments to toggle signal output faces.
-                    </p>
-                )}
-            </div>
-
-            <div>
-                <label className="text-sm text-gray-400 block mb-2">
-                    Signal Range ({cell.state.data?.range || 10} hops)
-                </label>
-                <div className="flex items-center gap-3">
-                    <input
-                        type="range"
-                        min="1"
-                        max="50"
-                        step="1"
-                        value={cell.state.data?.range || 10}
-                        onChange={(e) => {
-                            const newRange = parseInt(e.target.value);
-                            updateCell(cell.id, {
-                                state: {
-                                    ...cell.state,
-                                    data: {
-                                        ...cell.state.data,
-                                        range: newRange
-                                    }
-                                }
-                            });
-                        }}
-                        className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                    />
-                    <span className="text-cyan-400 font-mono w-8 text-right">
-                        {cell.state.data?.range || 10}
-                    </span>
-                </div>
-            </div>
-
             <div>
                 <label className="text-sm text-gray-400 block mb-3">
                     Command Payload
@@ -152,29 +66,6 @@ export function WaveConfig({ cell, updateCell }: Props) {
                         </label>
                     ))}
                 </div>
-            </div>
-
-            <div>
-                <TimePicker
-                    label="Signal Speed (Delay per hop)"
-                    value={cell.state.data?.speedDelay || 0.1} // Default 0.1s (10 speed)
-                    min={0.05}
-                    max={5.0}
-                    onChange={(newDelay) => {
-                        updateCell(cell.id, {
-                            state: {
-                                ...cell.state,
-                                data: {
-                                    ...cell.state.data,
-                                    speedDelay: newDelay
-                                }
-                            }
-                        });
-                    }}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                    Time it takes for the signal to travel to the next cell.
-                </p>
             </div>
         </div>
     );

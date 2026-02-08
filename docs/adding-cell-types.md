@@ -105,3 +105,26 @@ export const PAM_REGISTRY: Record<string, PamModule> = {
 ```
 
 3. Done! The Reactor Cell now appears in the Genesis Tool.
+
+---
+
+## ⚠️ CRITICAL: The Registry Pitfall
+
+When implementing features that iterate over cell types (like Tickers, Renderers, or Inspectors), **NEVER hardcode the list of cells**.
+
+**❌ BAD:**
+```typescript
+const CELLS = { stem: StemCell, timer: TimerCell }; // Hardcoded list
+```
+
+**✅ GOOD:**
+```typescript
+import { REGISTRY } from '@/pams/registry'; // Always use the central registry
+```
+
+Failure to use the central registry means new cell types will be "invisible" to that feature, causing bugs like:
+- Cells not updating (`onTick` never called)
+- Cells failing to render
+- Interaction logic broken
+
+**Always import `REGISTRY` or `getAllCellTypes()` from `@/pams/registry`.**
