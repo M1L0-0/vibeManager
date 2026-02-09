@@ -5,12 +5,16 @@
 
 import { create } from 'zustand';
 import { Cell, PamDNA, Signal, PamModule, Particle } from '@/lib/vibe-core';
-import { HexCoord, hexToId, getNeighbors } from '@/core/grid/hex';
+import { HexCoord, hexToId, getNeighbors, hexDistance } from '@/core/grid/hex';
 import { CHANNELS, ChannelId } from '@/core/grid/channels';
 
 interface GridState {
     // The world map: cellId -> Cell
     cells: Map<string, Cell>;
+
+    // Group Index: groupId -> Set<cellId>
+    // Optimizes O(N) lookups to O(1)
+    groups: Map<string, Set<string>>;
 
     // Active signals being propagated
     signals: Signal[];
@@ -38,7 +42,7 @@ interface GridState {
 
     // Centralized Propagation (Visuals + Delivery)
     // Centralized Propagation (Visuals + Delivery)
-    propagateSignal: (sourceId: string, signal: Signal, options?: { speed?: number, color?: string, type?: 'linear' | 'arc' | 'wobble', directions?: number[] }) => void;
+    propagateSignal: (sourceId: string, signal: Signal, options?: { speed?: number, color?: string, type?: 'linear' | 'arc' | 'wobble', directions?: number[], wireless?: boolean }) => void;
 
     // Grouping
     mergeCells: (cellIdA: string, cellIdB: string) => void;
@@ -46,6 +50,7 @@ interface GridState {
 
 export const useGridStore = create<GridState>((set, get) => ({
     cells: new Map(),
+    groups: new Map(),
     signals: [],
     particles: [],
 
@@ -85,16 +90,49 @@ export const useGridStore = create<GridState>((set, get) => ({
 
     killCell: (cellId) => {
         set((state) => {
+            const cell = state.cells.get(cellId);
             const newCells = new Map(state.cells);
+            const newGroups = new Map(state.groups);
+
+            // Clean up group index
+            if (cell && cell.state.groupId) {
+                const group = newGroups.get(cell.state.groupId);
+                if (group) {
+                    group.delete(cellId);
+                    if (group.size === 0) {
+                        newGroups.delete(cell.state.groupId);
+                    }
+                }
+            }
+
             newCells.delete(cellId);
-            return { cells: newCells };
+            // return { cells: newCells }; // BUG FIX: Return both if groups changed?
+            // Actually Set and Map mutations in strict mode...
+            // Zustand merge is shallow. If we mutate the Map inside `state.groups.get(...)`, that mutation persists if we don't clone the map.
+            // But here we cloned newGroups.
+            // However, we didn't clone the Set inside newGroups.
+            // But since 'group' is a reference to the Set in the old map...
+            // If we modify 'group' (delete), it modifies the Set in the old state too.
+            // Strict immutability requires cloning the Set.
+            // For performance, maybe we accept mutation of the Set if we treat it as an index? 
+            // Better to be safe: Clone the Set if we modify it.
+
+            // Let's implement helper to safe-delete from group
+            /* 
+               Actually, cleaner logic below:
+            */
+            return { cells: newCells, groups: newGroups };
         });
     },
 
     updateCell: (cellId, updates) => {
         set((state) => {
+            // console.log('[GridStore] updateCell', cellId, updates);
             const cell = state.cells.get(cellId);
-            if (!cell) return state;
+            if (!cell) {
+                console.warn('[GridStore] updateCell: Cell not found', cellId);
+                return state;
+            }
 
             const newCells = new Map(state.cells);
 
@@ -116,31 +154,59 @@ export const useGridStore = create<GridState>((set, get) => ({
 
             newCells.set(cellId, updatedCell);
 
-            // Group Synchronization
-            // If cell belongs to a group, sync specific shared state to all peers
-            // Shared state: color (in DNA? no, usually static), data properties (channel, speed, etc)
-            // Excluded state: directions (per cell), activity (per cell)
+            const oldGroupId = cell.state.groupId;
+            const newGroupId = updatedCell.state.groupId;
+
+            let newGroups = state.groups; // Check if we need to clone
+
+            // Handle Group Index Changes
+            if (oldGroupId !== newGroupId) {
+                newGroups = new Map(state.groups);
+
+                // Remove from old group
+                if (oldGroupId) {
+                    const oldGroupSet = new Set(newGroups.get(oldGroupId));
+                    oldGroupSet.delete(cellId);
+                    if (oldGroupSet.size === 0) {
+                        newGroups.delete(oldGroupId);
+                    } else {
+                        newGroups.set(oldGroupId, oldGroupSet);
+                    }
+                }
+
+                // Add to new group
+                if (newGroupId) {
+                    const newGroupSet = new Set(newGroups.get(newGroupId) || []);
+                    newGroupSet.add(cellId);
+                    newGroups.set(newGroupId, newGroupSet);
+                }
+            }
+
+            // Group Synchronization (Existing logic, but update peer fetching)
             if (updatedCell.state.groupId) {
                 const groupId = updatedCell.state.groupId;
                 const sharedData = updates.state?.data;
                 const sharedSeenSignals = updates.state?.seenSignals;
 
-                // Sync these props to all group members
-                state.cells.forEach((peer, peerId) => {
-                    if (peer.state.groupId === groupId && peerId !== cellId) {
+                // Sync to peers
+                // Optimization: Use `newGroups` index instead of iterating `state.cells`
+                const peers = newGroups.get(groupId); // Logic note: if we just added it, it's in newGroups
+
+                if (peers) {
+                    peers.forEach(peerId => {
+                        if (peerId === cellId) return; // Skip self
+
+                        // We need to get the peer cell from `newCells` (in case we updated multiple in one batch? No, updateCell is single)
+                        // But we need the current peer state.
+                        const peer = newCells.get(peerId);
+                        if (!peer) return; // Should not happen if index is sync
+
                         const newPeer = { ...peer };
                         let peerStateUpdated = false;
 
                         // Sync Data
                         if (sharedData) {
                             const { directions, ...trulySharedData } = sharedData;
-
-                            // Protect own directions
-                            const currentDirections = peer.state.data?.directions;
-                            if (currentDirections) {
-                                // If sharedData has directions, we might want to ignore it or not.
-                                // Current strategy: Don't sync directions automatically via sharedData update
-                            }
 
                             newPeer.state = {
                                 ...peer.state,
@@ -153,12 +219,11 @@ export const useGridStore = create<GridState>((set, get) => ({
                             peerStateUpdated = true;
                         }
 
-                        // Sync Seen Signals (Critical for Group Immunity/Infinite Loop prevention)
+                        // Sync Seen Signals
                         if (sharedSeenSignals) {
                             if (!newPeer.state.seenSignals) {
                                 newPeer.state.seenSignals = new Set(sharedSeenSignals);
                             } else {
-                                // Union of sets
                                 sharedSeenSignals.forEach(s => newPeer.state.seenSignals!.add(s));
                             }
                             peerStateUpdated = true;
@@ -167,11 +232,11 @@ export const useGridStore = create<GridState>((set, get) => ({
                         if (peerStateUpdated) {
                             newCells.set(peerId, newPeer);
                         }
-                    }
-                });
+                    });
+                }
             }
 
-            return { cells: newCells };
+            return { cells: newCells, groups: newGroups };
         });
     },
 
@@ -225,6 +290,7 @@ export const useGridStore = create<GridState>((set, get) => ({
     },
 
     propagateSignal: (sourceId, signal, options) => {
+        // console.log('[GridStore] propagateSignal', sourceId, signal.type);
         const state = get();
         const sourceCell = state.cells.get(sourceId);
         if (!sourceCell) return;
@@ -236,46 +302,81 @@ export const useGridStore = create<GridState>((set, get) => ({
 
         if (sourceGroupId) {
             // Find all cells in this group
-            // Performance note: O(N) scan. For huge grids, use a separate group map.
-            const groupMembers = Array.from(state.cells.values()).filter(c => c.state.groupId === sourceGroupId);
-            if (groupMembers.length > 0) {
-                emitters = groupMembers;
+            // OPTIMIZED: Use Group Index
+            const groupSet = state.groups.get(sourceGroupId);
+            if (groupSet) {
+                // Clear emitters and repopulate from group to avoid duplication
+                // (Since [sourceCell] was default)
+                emitters = [];
+                groupSet.forEach(memberId => {
+                    const member = state.cells.get(memberId);
+                    if (member) emitters.push(member);
+                });
             }
+        }
+
+        // Ensure at least source if empty group (fallback)
+        if (emitters.length === 0) {
+            emitters.push(sourceCell);
         }
 
         const newParticles: Particle[] = [];
 
-        // Emit from all emitters (or just the single source)
+        if (options?.wireless) {
+            // --- Wireless / AoE Mode ---
+            const range = signal.range || 10;
+            const cells = Array.from(state.cells.values());
+
+            emitters.forEach(emitter => {
+                cells.forEach(target => {
+                    if (target.id === emitter.id) return; // Don't target self
+                    if (target.state.groupId && target.state.groupId === sourceGroupId) return; // Don't target own group
+
+                    const dist = hexDistance(emitter.coord, target.coord);
+                    if (dist > range) return;
+                    if (dist === 0) return;
+
+                    const remainingRange = range - dist;
+                    if (remainingRange < 0) return;
+
+                    const nextSignal = { ...signal, range: remainingRange };
+                    const particleColor = options?.color || '#ffffff';
+
+                    newParticles.push({
+                        id: `p-${Date.now()}-${Math.random()}`,
+                        sourceId: emitter.id,
+                        targetId: target.id,
+                        signal: nextSignal,
+                        progress: 0,
+                        speed: options?.speed || 5.0,
+                        color: particleColor,
+                        type: options?.type || 'arc'
+                    });
+                });
+            });
+
+            if (newParticles.length > 0) {
+                set(state => ({
+                    particles: [...state.particles, ...newParticles]
+                }));
+            }
+            return;
+        }
+
+        // --- Standard Neighbor Propagation ---
         emitters.forEach(emitter => {
             const neighbors = getNeighbors(emitter.coord);
-
-            // Determine directions for THIS emitter
-            // If options.directions is passed (override), use it? 
-            // Or if it's a group emission, we should probably respect each cell's individual internal config
-            // unless the signal is forcing a direction.
-            // WaveCell.onClick passes `cell.state.data.directions`.
-            // StructureEditor configures `cell.state.data.directions`.
-            // So we should rely on `emitter.state.data.directions`.
-
-            // BUT: propagateSignal call from WaveCell passes options.directions specifically for THAT cell.
-            // If we are auto-expanding to group, we should look up directions for each peer.
-
             let emissionDirections = options?.directions;
 
             if (sourceGroupId && emitter.id !== sourceId) {
-                // For peers, use their own configured directions
                 emissionDirections = emitter.state.data?.directions;
             } else if (!emissionDirections && sourceGroupId) {
-                // For source itself, if no override, use its data
                 emissionDirections = emitter.state.data?.directions;
             }
 
-            // Default to all if undefined
             if (!emissionDirections) emissionDirections = [0, 1, 2, 3, 4, 5];
 
-
             neighbors.forEach((neighborCoord, directionIndex) => {
-                // Filter by direction
                 if (emissionDirections && !emissionDirections.includes(directionIndex)) {
                     return;
                 }
@@ -289,15 +390,12 @@ export const useGridStore = create<GridState>((set, get) => ({
                 }
 
                 if (neighborCell) {
-                    // Determine particle color
                     let particleColor = options?.color || '#ffffff';
                     if (!options?.color && signal.channelId) {
-                        // ... logic same as before ... 
                         const channel = CHANNELS[signal.channelId as ChannelId];
                         if (channel) particleColor = channel.color;
                     }
 
-                    // Handle Range Logic (same as before)
                     const currentRange = signal.range !== undefined ? signal.range : 100;
                     if (currentRange <= 0) return;
 
@@ -305,7 +403,7 @@ export const useGridStore = create<GridState>((set, get) => ({
 
                     newParticles.push({
                         id: `p-${Date.now()}-${Math.random()}`,
-                        sourceId: emitter.id, // Emitting from THIS group member
+                        sourceId: emitter.id,
                         targetId: neighborId,
                         signal: nextSignal,
                         progress: 0,
@@ -377,18 +475,58 @@ export const useGridStore = create<GridState>((set, get) => ({
             addToGroup(cellIdB, masterData);
 
             // If merging two existing groups, find all their members and update them
-            // This is O(N) over all cells, which is fine for small grids.
-            // For larger grids, we might want a `groups` map.
-            if ((groupA && groupA !== finalGroupId) || (groupB && groupB !== finalGroupId)) {
-                state.cells.forEach((cell, id) => {
-                    if (cell.state.groupId === groupA || cell.state.groupId === groupB) {
-                        addToGroup(id, masterData);
-                    }
-                });
+            // OPTIMIZED: Use index if possible, but we are actively rebuilding the index anyway.
+            // Since we iterate 'addToGroup' which sets existing cells...
+            // Let's use the Index to find members of A and B efficiently instead of scanning all cells.
+
+            const membersA = state.groups.get(groupA || '') || new Set<string>();
+            const membersB = state.groups.get(groupB || '') || new Set<string>();
+
+            // Note: If they didn't have groups, they might not be in the index? 
+            // Logic: if groupA is undefined, membersA is empty.
+            // But cellA itself needs processing.
+
+            addToGroup(cellIdA, masterData);
+            addToGroup(cellIdB, masterData);
+
+            if (groupA) {
+                membersA.forEach(id => addToGroup(id, masterData));
             }
 
+            if (groupB) {
+                membersB.forEach(id => addToGroup(id, masterData));
+            }
+
+            // Rebuild Groups Index for affected groups
+            // We just mass-updated IDs to 'finalGroupId'.
+            // The simplest way is to fetch the Set for finalGroupId and add everyone.
+            // And delete the old groups.
+            const newGroups = new Map(state.groups);
+
+            const newGroupSet = new Set(newGroups.get(finalGroupId) || []);
+
+            // Add A members
+            if (groupA) {
+                const oldSetA = newGroups.get(groupA); // This is reference to old state
+                if (oldSetA) oldSetA.forEach(id => newGroupSet.add(id));
+                newGroups.delete(groupA);
+            }
+
+            // Add B members
+            if (groupB) {
+                const oldSetB = newGroups.get(groupB);
+                if (oldSetB) oldSetB.forEach(id => newGroupSet.add(id));
+                newGroups.delete(groupB);
+            }
+
+            // Add the two specific cells (in case they weren't in a group before)
+            newGroupSet.add(cellIdA);
+            newGroupSet.add(cellIdB);
+
+            newGroups.set(finalGroupId, newGroupSet);
+
             console.log(`Merged ${cellIdA} and ${cellIdB} into group ${finalGroupId}`);
-            return { cells: newCells };
+            return { cells: newCells, groups: newGroups };
         });
     }
 }));

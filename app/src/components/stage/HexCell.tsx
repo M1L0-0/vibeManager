@@ -114,19 +114,35 @@ export const HexCell = memo(function HexCell({
                 );
             })}
 
-            {/* Pulse ring for activity */}
-            {cell.state.activity > 0 && (
+            {/* Pulse ring for activity (Signal or Timer) */}
+            {(cell.state.activity > 0 || (cell.dna.id === 'timer' && (cell.state.data as any)?.isRunning)) && (
                 <motion.circle
                     r={HEX_SIZE * 0.8}
                     fill="none"
                     stroke={cell.dna.color}
                     strokeWidth={3}
                     initial={{ opacity: 1, scale: 0.8 }}
-                    animate={{
-                        opacity: 0,
-                        scale: 1.5,
-                    }}
-                    transition={{ duration: 0.6 }}
+                    animate={
+                        (cell.dna.id === 'timer' && (cell.state.data as any)?.isRunning)
+                            ? {
+                                opacity: [0.2, 1, 0.2],
+                                scale: [0.8, 1.2, 0.8],
+                                transition: {
+                                    /* 
+                                     * Dynamic duration based on timeRemaining would be cool but requires passing it down.
+                                     * For now, standard pulse is fine.
+                                     */
+                                    duration: 1,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                }
+                            }
+                            : {
+                                opacity: 0,
+                                scale: 1.5,
+                                transition: { duration: 0.6 }
+                            }
+                    }
                 />
             )}
 
@@ -155,14 +171,7 @@ export const HexCell = memo(function HexCell({
 
             {/* Group Indicator (Link Icon) - Removed as per user request for clean look, walls removal is enough */}
 
-            {/* Energy indicator (small dot) - hidden for timer cells */}
-            {cell.dna.id !== 'timer' && (
-                <circle
-                    r={3}
-                    fill="#ffffff"
-                    opacity={cell.state.energy / 100}
-                />
-            )}
+
         </motion.g>
     );
 }, (prev, next) => {
@@ -188,6 +197,7 @@ export const HexCell = memo(function HexCell({
     // Fallback/Legacy explicit check for Timer (can technically be removed now if all PAMs implement deps correctly, but keeping as safety)
     if (prev.cell.dna.id === 'timer') {
         if (prev.cell.state.data?.timeRemaining !== next.cell.state.data?.timeRemaining) return false;
+        if ((prev.cell.state.data as any)?.isRunning !== (next.cell.state.data as any)?.isRunning) return false;
     }
 
     // Check connectedSides deep equality

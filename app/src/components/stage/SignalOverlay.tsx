@@ -10,7 +10,9 @@ import { useSimulationStore } from '@/store/simulation-store';
 import { useToolStore } from '@/store/tool-store';
 import { hexToPixel } from '@/core/grid/hex';
 
-export function SignalOverlay() {
+import { memo } from 'react';
+
+export const SignalOverlay = memo(function SignalOverlay() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const showParticles = useToolStore((state) => state.view.showSynapticVision);
     const cells = useGridStore((state) => state.cells);
@@ -39,36 +41,40 @@ export function SignalOverlay() {
                 top: 0,
                 left: 0,
                 pointerEvents: 'none',
-                overflow: 'visible', // Allow particles to be seen if they fly out (though grid usually clips?)
+                overflow: 'visible',
                 zIndex: 10
             }}
-            viewBox="-400 -400 800 800"
         >
-            {particles.map((p) => {
-                const source = cells.get(p.sourceId);
-                const target = cells.get(p.targetId);
+            {
+                particles.map((p) => {
+                    const source = cells.get(p.sourceId);
+                    const target = cells.get(p.targetId);
 
-                if (!source || !target) return null;
+                    if (!source || !target) return null;
 
-                const start = hexToPixel(source.coord);
-                const end = hexToPixel(target.coord);
+                    const start = hexToPixel(source.coord);
+                    const end = hexToPixel(target.coord);
 
-                // Linear interpolation based on progress
-                const x = start.x + (end.x - start.x) * p.progress;
-                const y = start.y + (end.y - start.y) * p.progress;
+                    // Linear interpolation based on progress
+                    const x = start.x + (end.x - start.x) * p.progress;
+                    const y = start.y + (end.y - start.y) * p.progress;
 
-                return (
-                    <circle
-                        key={p.id}
-                        cx={x}
-                        cy={y}
-                        r={4}
-                        fill={p.color}
-                        stroke="white"
-                        strokeWidth={1}
-                    />
-                );
-            })}
-        </svg>
+                    return (
+                        <circle
+                            key={p.id}
+                            cx={x}
+                            cy={y}
+                            r={4}
+                            fill={p.color}
+                            stroke="white"
+                            strokeWidth={0}
+                            style={{
+                                filter: `drop-shadow(0 0 4px ${p.color}) drop-shadow(0 0 8px ${p.color})`
+                            }}
+                        />
+                    );
+                })
+            }
+        </svg >
     );
-}
+});

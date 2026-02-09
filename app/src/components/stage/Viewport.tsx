@@ -4,22 +4,31 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { HexGrid } from './HexGrid';
 import { SignalOverlay } from './SignalOverlay';
+import { NebulaBackground } from './NebulaBackground';
 import { useToolStore } from '@/store/tool-store';
+import { pixelToHex } from '@/core/grid/hex';
 
 export function Viewport() {
-    const [pan, setPan] = useState({ x: 0, y: 0 });
-    const [zoom, setZoom] = useState(1);
+    const interaction = useToolStore((state) => state.interaction);
+    const view = useToolStore((state) => state.view);
+    const setPan = useToolStore((state) => state.setPan);
+    const setZoom = useToolStore((state) => state.setZoom);
+
+    const { pan, zoom } = view;
+
+    // Local drag state is fine
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-    const currentTool = useToolStore((state) => state.currentTool);
-    const editorMode = useToolStore((state) => state.editorMode);
-
-    // Disable viewport panning when in transplant mode
-    const canDragViewport = !(currentTool === 'genesis' && editorMode === 'transplant');
+    // Disable viewport panning when in transplant mode (to prevent conflict with drag-and-drop)
+    const canDragViewport = !(
+        interaction.type === 'GENESIS_TRANSPLANT_IDLE' ||
+        interaction.type === 'GENESIS_DRAGGING' ||
+        interaction.type === 'GENESIS_HOLDING'
+    );
 
     const handleMouseDown = (e: React.MouseEvent) => {
         if (!canDragViewport) return;
@@ -27,47 +36,139 @@ export function Viewport() {
         setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     };
 
-    const handleMouseMove = (e: React.MouseEvent) => {
-        if (isDragging && canDragViewport) {
-            setPan({
-                x: e.clientX - dragStart.x,
-                y: e.clientY - dragStart.y,
-            });
-        }
-    };
+    // Use window listeners for drag to prevent UI interference and text selection
+    useEffect(() => {
+        if (!isDragging) return;
 
-    const handleMouseUp = () => {
-        setIsDragging(false);
-    };
+        const handleWindowMouseMove = (e: MouseEvent) => {
+            if (canDragViewport) {
+                setPan({
+                    x: e.clientX - dragStart.x,
+                    y: e.clientY - dragStart.y,
+                });
+            }
+        };
+
+        const handleWindowMouseUp = () => {
+            setIsDragging(false);
+        };
+
+        window.addEventListener('mousemove', handleWindowMouseMove);
+        window.addEventListener('mouseup', handleWindowMouseUp);
+
+        return () => {
+            window.removeEventListener('mousemove', handleWindowMouseMove);
+            window.removeEventListener('mouseup', handleWindowMouseUp);
+        };
+    }, [isDragging, canDragViewport, dragStart]);
 
     const handleWheel = (e: React.WheelEvent) => {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        setZoom((prev) => Math.max(0.5, Math.min(3, prev * delta)));
+
+        // Zoom-to-cursor logic
+        const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+        const newZoom = Math.max(0.1, Math.min(8, zoom * zoomFactor)); // Increased zoom range for infinite feel
+
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+
+        // Calculate new pan to keep mouse position stationary in world space
+        // world_point = (screen_point - pan) / old_zoom
+        // new_pan = screen_point - world_point * new_zoom
+        const newPanX = mouseX - ((mouseX - pan.x) / zoom) * newZoom;
+        const newPanY = mouseY - ((mouseY - pan.y) / zoom) * newZoom;
+
+        setZoom(newZoom);
+        setPan({ x: newPanX, y: newPanY });
     };
+
+    // Hex Grid Dimensions (from hex.ts)
+    const HEX_SIZE = 40;
+    const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE; // ~69.28
+    const HEX_HEIGHT = 2 * HEX_SIZE; // 80
+    // The pattern needs to repeat every:
+    // Width: sqrt(3) * size (column width) -> No, standard tiling is complicated.
+    // Let's use a pattern width of sqrt(3)*size * 2? 
+    // Actually, simple path: vertically spaced by 1.5 * size (60px). Horizontally by sqrt(3) * size (~69.28).
+    // To tile perfectly, use a pattern unit of Width = sqrt(3)*size, Height = 3*size.
+    // Contains 2 hexes (one at 0,0, one offset).
+    const PATTERN_W = Math.sqrt(3) * HEX_SIZE;
+    const PATTERN_H = 3 * HEX_SIZE;
+
+    const showNebula = useToolStore((state) => state.view.showNebula);
 
     return (
         <div
+            className="infinite-viewport"
             style={{
                 width: '100vw',
                 height: '100vh',
                 overflow: 'hidden',
-                background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%)',
+                background: '#1a1a24', // Lighter, slightly purple-tinted dark background
                 position: 'relative',
                 cursor: canDragViewport ? (isDragging ? 'grabbing' : 'grab') : 'default',
             }}
             onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
             onWheel={handleWheel}
+            onClick={(e) => {
+                // If dragging, ignore click (it was a drag end)
+                // We track this via a small heuristic or ref
+                // Actually `isDragging` state might process mouseUp before click fires?
+                // Click typically fires after MouseUp.
+                // But we set isDragging false on MouseUp. 
+                // We need to know if we *did* drag.
+
+                // Let's rely on simple delta check
+                if (Math.abs(e.clientX - (dragStart.x + pan.x)) > 5 || Math.abs(e.clientY - (dragStart.y + pan.y)) > 5) {
+                    // It was a drag
+                    return;
+                }
+
+                // If target is NOT the background (e.g. clicking a cell or UI), don't trigger background click
+                // But React events bubble.
+                // We can check e.target.
+                // If the user clicked a HexCell, that component handles the click event via `handleGridEvent`.
+                // However, does it stop propagation?
+                // If HexCell handler calls `handleGridEvent`, it doesn't stop native propagation unless we explicitly `e.stopPropagation()`.
+                // Let's assume HexCell needs to prevent this background click.
+                // NOTE: HexCell should call stopPropagation? 
+
+                // OR: We check defaultPrevented? 
+                if (e.defaultPrevented) return;
+
+                // Calculate Hex Coord
+                // World Point = (Screen - Pan) / Zoom
+                const worldX = (e.clientX - pan.x) / zoom;
+                const worldY = (e.clientY - pan.y) / zoom;
+
+                const coord = pixelToHex({ x: worldX, y: worldY });
+
+                useToolStore.getState().handleGridEvent({
+                    type: 'BACKGROUND_CLICK',
+                    coord
+                });
+            }}
         >
+            {/* Background Layers - Memoized to prevent re-renders unless Pan/Zoom changes */}
+            {showNebula && (
+                <NebulaBackground
+                    pan={pan}
+                    zoom={zoom}
+                    PATTERN_W={PATTERN_W}
+                    PATTERN_H={PATTERN_H}
+                    HEX_SIZE={HEX_SIZE}
+                />
+            )}
+
+            {/* 5. Game World */}
             <div
                 style={{
                     transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                    transformOrigin: 'center center',
+                    transformOrigin: '0 0',
                     width: '100%',
                     height: '100%',
+                    zIndex: 2,
+                    position: 'relative'
                 }}
             >
                 <HexGrid />
@@ -80,22 +181,44 @@ export function Viewport() {
                     position: 'absolute',
                     top: 20,
                     left: 20,
-                    color: '#fff',
+                    color: 'rgba(255,255,255,0.6)',
                     fontFamily: 'monospace',
-                    fontSize: 12,
-                    background: 'rgba(0,0,0,0.5)',
-                    padding: '10px',
-                    borderRadius: '8px',
+                    fontSize: 10,
+                    background: 'rgba(0,0,0,0.4)',
+                    padding: '6px 10px',
+                    borderRadius: '99px',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    backdropFilter: 'blur(4px)',
+                    zIndex: 20, // UI on top
+                    pointerEvents: 'none'
                 }}
             >
-                <div>Pan: ({pan.x.toFixed(0)}, {pan.y.toFixed(0)})</div>
-                <div>Zoom: {zoom.toFixed(2)}x</div>
-                <div style={{ marginTop: 10, opacity: 0.7 }}>
-                    🖱️ Click cells to emit signals<br />
-                    🔍 Scroll to zoom<br />
-                    ✋ Drag to pan
+                <div className="flex gap-4">
+                    <span>POS: {pan.x.toFixed(0)},{pan.y.toFixed(0)}</span>
+                    <span>ZOOM: {zoom.toFixed(2)}x</span>
                 </div>
             </div>
+
+            <style jsx global>{`
+                @keyframes float-fast-1 {
+                    0% { transform: translate(0, 0) scale(1) rotate(0deg); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
+                    25% { transform: translate(60px, -40px) scale(1.1) rotate(10deg); border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+                    50% { transform: translate(-30px, 50px) scale(0.9) rotate(-10deg); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
+                    75% { transform: translate(40px, 20px) scale(1.05) rotate(5deg); border-radius: 50% 50% 40% 60% / 50% 60% 40% 50%; }
+                    100% { transform: translate(0, 0) scale(1) rotate(0deg); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
+                }
+                @keyframes float-fast-2 {
+                    0% { transform: translate(0, 0) scale(0.9) rotate(0deg); border-radius: 50% 50% 60% 40% / 50% 40% 60% 50%; opacity: 0.6; }
+                    33% { transform: translate(-50px, 40px) scale(1.15) rotate(-15deg); border-radius: 40% 60% 40% 60% / 40% 60% 40% 60%; opacity: 0.8; }
+                    66% { transform: translate(40px, -30px) scale(0.95) rotate(10deg); border-radius: 60% 40% 70% 30% / 60% 30% 70% 40%; opacity: 0.7; }
+                    100% { transform: translate(0, 0) scale(0.9) rotate(0deg); border-radius: 50% 50% 60% 40% / 50% 40% 60% 50%; opacity: 0.6; }
+                }
+                @keyframes float-fast-3 {
+                    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.4; }
+                    50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.5; }
+                    100% { transform: translate(-50%, -50%) scale(1); opacity: 0.4; }
+                }
+            `}</style>
         </div>
     );
 }

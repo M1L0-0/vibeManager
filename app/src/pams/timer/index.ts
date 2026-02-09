@@ -62,7 +62,11 @@ export const TimerCell: PamModule = {
 
         // Update cell with new data
         useGridStore.getState().updateCell(cell.id, {
-            state: { ...cell.state, data },
+            state: {
+                ...cell.state,
+                activity: data.isRunning ? cell.state.activity : 0, // Reset activity if paused
+                data
+            },
         });
     },
 
@@ -79,24 +83,20 @@ export const TimerCell: PamModule = {
         // Update time remaining
         data.timeRemaining = Math.max(0, data.timeRemaining - deltaTime);
 
-        // Calculate pulse activity based on time (speeds up as countdown progresses)
-        const progress = 1 - (data.timeRemaining / data.maxTime);
-        const pulseFrequency = 0.5 + progress * 2; // 0.5Hz to 2.5Hz
-        const pulseActivity = Math.abs(Math.sin(Date.now() / (1000 / pulseFrequency))) * 0.3;
-
         // Update cell state
         useGridStore.getState().updateCell(cell.id, {
             state: {
                 ...cell.state,
-                activity: data.isRunning ? pulseActivity : 0,
                 data,
             },
         });
 
         // Timer completed!
         if (data.timeRemaining <= 0 && data.isRunning) {
-            console.log(`⏱️ Timer Cell ${cell.id}: COMPLETED! Sending pulse...`);
-            data.isRunning = false;
+            console.log(`⏱️ Timer Cell ${cell.id}: COMPLETED! Stop requested.`);
+
+            // Determine separate state for loop vs stop
+            const shouldLoop = data.loop || data.autoRestart;
 
             // Send pulse (Impulse)
             createImpulse(cell, 'wave', { message: 'Timer completed!' }, {
@@ -106,36 +106,30 @@ export const TimerCell: PamModule = {
                 command: 'TRIGGER'
             });
 
-            // Trigger our own completion pulse (createImpulse handles activity set to 1.0)
-
-            // Handle auto-restart and loop modes
-            // We need to fetch fresh data or update what we have.
-            // createImpulse updates cell state activity but doesn't touch data (except lastFired).
-            // So we need to ensure 'isRunning' and 'timeRemaining' are updated.
-
-            if (data.autoRestart || data.loop) {
+            if (shouldLoop) {
                 console.log(`⏱️ Timer Cell ${cell.id}: Auto-restarting...`);
-                data.timeRemaining = data.maxTime;
-                data.isRunning = data.loop; // loop=true (keep running), autoRestart=true (stop and wait click? or simply reset?) 
-                // "In loop mode, keep running. In autoRestart mode, stop until clicked again" -> logic preserved
+                const nextData = {
+                    ...data,
+                    timeRemaining: data.maxTime,
+                    isRunning: true
+                };
 
-                // Update cell state with new data
                 useGridStore.getState().updateCell(cell.id, {
                     state: {
                         ...cell.state,
-                        data,
+                        data: nextData
                     },
                 });
             } else {
-                // Even if not restarting, createImpulse sets activity. BUT createImpulse doesn't update 'data' (isRunning=false).
-                // We must ensure the 'data' update happens.
-                // createImpulse does `updateCell` for activity.
-                // We can chain another update, or rely on the previous updates?
-                // Wait, we set data.isRunning=false at line 100.
+                console.log(`⏱️ Timer Cell ${cell.id}: Stopping.`);
+                // Stop running
+                // We use a fresh object to avoid any reference mutation issues from above
+                const nextData = { ...data, isRunning: false };
+
                 useGridStore.getState().updateCell(cell.id, {
                     state: {
                         ...cell.state,
-                        data // Save the isRunning = false change
+                        data: nextData
                     }
                 });
             }
@@ -241,6 +235,6 @@ export const TimerCell: PamModule = {
     },
 
     getRenderDependencies: (cell: Cell) => {
-        return [cell.state.data?.timeRemaining];
+        return [cell.state.data?.timeRemaining, (cell.state.data as any)?.isRunning];
     }
 };

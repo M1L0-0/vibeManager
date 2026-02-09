@@ -137,6 +137,7 @@ export function createImpulse(
         type?: 'linear' | 'arc' | 'wobble'; // Movement pattern
         command?: string; // 'TRIGGER', etc
         inheritLastFired?: boolean; // If true, checks cooldown
+        wireless?: boolean; // If true, propagates through empty space
     } = {}
 ) {
     const now = Date.now();
@@ -187,7 +188,8 @@ export function createImpulse(
         speed: speed,
         type: options.type || 'arc', // Default to arc if not specified
         directions: directions,
-        color: options.color
+        color: options.color,
+        wireless: options.wireless
     });
 
     // Update State

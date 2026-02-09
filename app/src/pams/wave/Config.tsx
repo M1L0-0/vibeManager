@@ -67,6 +67,35 @@ export function WaveConfig({ cell, updateCell }: Props) {
                     ))}
                 </div>
             </div>
-        </div>
+
+
+            {/* Wireless / Through-End Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-gray-800/30">
+                <div>
+                    <div className="text-gray-200 font-medium">Wireless Propagation</div>
+                    <div className="text-xs text-gray-500">Signal travels through empty space</div>
+                </div>
+                <button
+                    onClick={() => {
+                        updateCell(cell.id, {
+                            state: {
+                                ...cell.state,
+                                data: {
+                                    ...cell.state.data,
+                                    wireless: !cell.state.data?.wireless
+                                }
+                            }
+                        });
+                    }}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${cell.state.data?.wireless ? 'bg-cyan-500' : 'bg-gray-600'
+                        }`}
+                >
+                    <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${cell.state.data?.wireless ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                    />
+                </button>
+            </div>
+        </div >
     );
 }

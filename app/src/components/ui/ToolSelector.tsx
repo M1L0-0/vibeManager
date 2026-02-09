@@ -7,19 +7,21 @@
 import { useToolStore } from '@/store/tool-store';
 import { getAllCellTypes } from '@/pams/registry';
 import { GlassButton, GlassPanel } from './Glass';
-import { Hand, Search, Dna, Eye } from 'lucide-react';
+import { Hand, Search, Dna, Eye, Sparkles, Eraser } from 'lucide-react';
 
 export function ToolSelector() {
     const interaction = useToolStore((state) => state.interaction);
     const setToolHand = useToolStore((state) => state.setToolHand);
     const setToolInspect = useToolStore((state) => state.setToolInspect);
     const setToolGenesis = useToolStore((state) => state.setToolGenesis);
+    const setToolEraser = useToolStore((state) => state.setToolEraser);
 
     // Helper to determine active tool
     const getActiveTool = () => {
         if (interaction.type === 'HAND_IDLE') return 'hand';
         if (interaction.type.startsWith('INSPECT')) return 'inspect';
         if (interaction.type.startsWith('GENESIS')) return 'genesis';
+        if (interaction.type === 'ERASER_IDLE') return 'eraser';
         return null;
     };
 
@@ -27,6 +29,7 @@ export function ToolSelector() {
     const handleSelectTool = (toolId: string) => {
         if (toolId === 'hand') setToolHand();
         if (toolId === 'inspect') setToolInspect();
+        if (toolId === 'eraser') setToolEraser();
         if (toolId === 'genesis') {
             // Default to first available cell type
             const firstCell = getAllCellTypes()[0];
@@ -45,6 +48,7 @@ export function ToolSelector() {
         { id: 'hand', icon: Hand, label: 'Hand Tool', description: 'Interact with cells' },
         { id: 'inspect', icon: Search, label: 'Inspect Tool', description: 'View cell genome' },
         { id: 'genesis', icon: Dna, label: 'Genesis Tool', description: 'Create and arrange cells' },
+        { id: 'eraser', icon: Eraser, label: 'Eraser Tool', description: 'Remove cells' },
         // { id: 'visualizer', icon: Eye, label: 'Synaptic Vision', description: 'Visualize signals & control simulation' },
     ];
 
@@ -53,7 +57,8 @@ export function ToolSelector() {
     // My plan said: "For now, keep it in the list if the user prefers, BUT selecting it should toggling the view flag".
     // Let's keep it but make it toggle view.
 
-    const { toggleSynapticVision, view } = useToolStore();
+    const { toggleSynapticVision, toggleNebula, view } = useToolStore();
+    const { showNebula } = view;
 
     return (
         <GlassPanel className="fixed left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-3 z-50">
@@ -92,6 +97,21 @@ export function ToolSelector() {
                 <div className="absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border border-gray-700">
                     <div className="font-semibold">Synaptic Vision</div>
                     <div className="text-gray-400 text-xs">Toggle signal overlay</div>
+                </div>
+            </GlassButton>
+
+            {/* Nebula Toggle */}
+            <GlassButton
+                onClick={toggleNebula}
+                isActive={showNebula}
+                activeVariant="purple"
+                className="group relative w-14 h-14"
+                title="Nebula Background"
+            >
+                <Sparkles size={24} />
+                <div className="absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border border-gray-700">
+                    <div className="font-semibold">Nebula</div>
+                    <div className="text-gray-400 text-xs">Toggle background FX</div>
                 </div>
             </GlassButton>
         </GlassPanel>

@@ -8,14 +8,46 @@ import { useGridStore } from '@/store/grid-store';
 import { useToolStore } from '@/store/tool-store';
 import { HexCell } from './HexCell';
 import { Cell } from '@/lib/vibe-core';
-import { getNeighbors } from '@/core/grid/hex';
+import { getNeighbors, hexToPixel, HEX_SIZE, hexToId } from '@/core/grid/hex';
 
-export function HexGrid() {
+import { memo } from 'react';
+
+export const HexGrid = memo(function HexGrid() {
     const cellsMap = useGridStore((state) => state.cells);
     const cells = Array.from(cellsMap.values());
-    const getCellAt = useGridStore((state) => state.getCellAt);
+    const groups = useGridStore((state) => state.groups);
 
     const handleGridEvent = useToolStore((state) => state.handleGridEvent);
+    const view = useToolStore((state) => state.view);
+    const { pan, zoom } = view;
+
+    // Viewport Culling
+    const visibleCells = cells.filter(cell => {
+        // Optimistic window size (client-side only for now)
+        const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
+        const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 1080;
+
+        // Buffer in pixels (allow 4 extra hexes)
+        const buffer = HEX_SIZE * 4;
+
+        // Calculate World Bounds of the Viewport
+        // transform is: translate(pan.x, pan.y) scale(zoom)
+        // Inverse transform to find world coordinates of the screen edges
+        const minX = -pan.x / zoom - buffer;
+        const maxX = (windowWidth - pan.x) / zoom + buffer;
+        const minY = -pan.y / zoom - buffer;
+        const maxY = (windowHeight - pan.y) / zoom + buffer;
+
+        // Calculate Cell Position
+        const pos = hexToPixel(cell.coord);
+
+        return (
+            pos.x >= minX &&
+            pos.x <= maxX &&
+            pos.y >= minY &&
+            pos.y <= maxY
+        );
+    });
 
 
 
@@ -44,16 +76,21 @@ export function HexGrid() {
                     position: 'absolute',
                     top: 0,
                     left: 0,
+                    overflow: 'visible'
                 }}
-                viewBox="-400 -400 800 800"
             >
                 <g id="grid-container">
-                    {cells.map((cell) => {
+                    {visibleCells.map((cell) => {
                         // Calculate connected sides for group rendering
+                        // OPTIMIZED: Use Group Index Set check instead of full Cell lookup
+                        const groupId = cell.state.groupId;
+                        const groupMembers = groupId ? groups.get(groupId) : null;
+
                         const neighborCoords = getNeighbors(cell.coord);
                         const connectedSides = neighborCoords.map(nCoord => {
-                            const nCell = getCellAt(nCoord);
-                            return !!(cell.state.groupId && nCell && nCell.state.groupId === cell.state.groupId);
+                            if (!groupId || !groupMembers) return false;
+                            const nId = hexToId(nCoord);
+                            return groupMembers.has(nId);
                         });
 
                         return (
@@ -73,4 +110,4 @@ export function HexGrid() {
 
         </>
     );
-}
+});

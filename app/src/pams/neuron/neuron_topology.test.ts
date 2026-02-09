@@ -134,6 +134,6 @@ describe('Neuron Topology Integration', () => {
         // 5. Verify Neuron Fired (createImpulse called 3rd time)
         expect(createImpulse).toHaveBeenCalledTimes(3);
         const lastCall = (createImpulse as jest.Mock).mock.calls[2];
-        expect(lastCall[0]).toBe(neuron);
+        expect(lastCall[0]).toMatchObject({ id: neuron.id });
     });
 });

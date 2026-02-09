@@ -27,6 +27,7 @@ const onWaveClick = (cellArgument: Cell) => {
     // Use Helper
     createImpulse(cell, 'wave', { message: 'Wave propagating...' }, {
         inheritLastFired: true,
+        wireless: cell.state.data?.wireless
         // Color is optional, helper will fallback or we can defaults
     });
 };

@@ -11,6 +11,9 @@ import { useGridStore } from './grid-store';
 
 export interface ViewState {
     showSynapticVision: boolean;
+    showNebula: boolean;
+    pan: { x: number; y: number };
+    zoom: number;
     // future: showHeatmap, showGridLines, showDebugOverlay
 }
 
@@ -24,7 +27,9 @@ export type InteractionState =
     | { type: 'GENESIS_DRAGGING', cell: Cell } // Currently dragging
     | { type: 'GENESIS_HOLDING', cell: Cell, ignoreNextClick: boolean } // Clicked and holding (for 2-step move)
     | { type: 'GENESIS_GLUING_SOURCE' } // Selecting source
-    | { type: 'GENESIS_GLUING_TARGET', sourceId: string }; // Selecting target
+    | { type: 'GENESIS_GLUING_SOURCE' } // Selecting source
+    | { type: 'GENESIS_GLUING_TARGET', sourceId: string } // Selecting target
+    | { type: 'ERASER_IDLE' }; // Erasing cells
 
 // --- Actions / Events ---
 
@@ -32,7 +37,11 @@ type GridEvent =
     | { type: 'CLICK', cell: Cell }
     | { type: 'MOUSE_DOWN', cell: Cell }
     | { type: 'MOUSE_UP', cell: Cell }
-    | { type: 'RIGHT_CLICK', cell: Cell };
+    | { type: 'CLICK', cell: Cell }
+    | { type: 'MOUSE_DOWN', cell: Cell }
+    | { type: 'MOUSE_UP', cell: Cell }
+    | { type: 'RIGHT_CLICK', cell: Cell }
+    | { type: 'BACKGROUND_CLICK', coord: { q: number; r: number } };
 
 export interface ToolStoreState {
     // Slices
@@ -41,13 +50,19 @@ export interface ToolStoreState {
 
     // View Actions
     toggleSynapticVision: () => void;
+    toggleNebula: () => void;
+    setPan: (pan: { x: number; y: number }) => void;
+    setZoom: (zoom: number) => void;
 
     // FSM Transitions
     setToolHand: () => void;
     setToolInspect: () => void;
     setToolGenesis: (dna: PamDNA) => void;
     setToolGenesisGlue: () => void;
+    setToolGenesis: (dna: PamDNA) => void;
+    setToolGenesisGlue: () => void;
     setToolGenesisTransplant: () => void;
+    setToolEraser: () => void;
 
     // Main Event Handler (The "Reducer")
     handleGridEvent: (event: GridEvent) => void;
@@ -58,7 +73,10 @@ export interface ToolStoreState {
 
 export const useToolStore = create<ToolStoreState>((set, get) => ({
     view: {
-        showSynapticVision: false
+        showSynapticVision: false,
+        showNebula: true, // Default to on
+        pan: { x: 0, y: 0 },
+        zoom: 1,
     },
 
     interaction: { type: 'HAND_IDLE' },
@@ -67,6 +85,18 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
 
     toggleSynapticVision: () => set(state => ({
         view: { ...state.view, showSynapticVision: !state.view.showSynapticVision }
+    })),
+
+    toggleNebula: () => set(state => ({
+        view: { ...state.view, showNebula: !state.view.showNebula }
+    })),
+
+    setPan: (pan) => set(state => ({
+        view: { ...state.view, pan }
+    })),
+
+    setZoom: (zoom) => set(state => ({
+        view: { ...state.view, zoom }
     })),
 
     // --- FSM Transitions (Tool Selection) ---
@@ -80,6 +110,8 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
     setToolGenesisGlue: () => set({ interaction: { type: 'GENESIS_GLUING_SOURCE' } }),
 
     setToolGenesisTransplant: () => set({ interaction: { type: 'GENESIS_TRANSPLANT_IDLE' } }),
+
+    setToolEraser: () => set({ interaction: { type: 'ERASER_IDLE' } }),
 
     clearInspection: () => {
         const current = get().interaction;
@@ -140,6 +172,21 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
                     gridStore.killCell(event.cell.id);
                     const pam = getPamModule(state.dna.id);
                     gridStore.spawnCell(event.cell.coord, state.dna, pam);
+                }
+                if (event.type === 'BACKGROUND_CLICK') {
+                    console.log(`🧬 Spawning ${state.dna.name} on BACKGROUND at ${event.coord.q},${event.coord.r}`);
+                    // Spawn on empty space
+                    // Check if occupied? (GridStore handles this check usually, but safely)
+                    const pam = getPamModule(state.dna.id);
+                    gridStore.spawnCell(event.coord, state.dna, pam);
+                }
+                break;
+            }
+
+            case 'ERASER_IDLE': {
+                if (event.type === 'CLICK') {
+                    console.log(`🗑️ Eraser: Killing cell ${event.cell.id}`);
+                    gridStore.killCell(event.cell.id);
                 }
                 break;
             }
