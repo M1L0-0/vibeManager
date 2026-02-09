@@ -42,14 +42,13 @@ export const WaveCell: PamModule = {
             cell.state.seenSignals = new Set<string>();
         }
         // Initialize default behavior (Omni-directional, Universal channel)
-        if (!cell.state.data) {
-            cell.state.data = {
-                directions: [0, 1, 2, 3, 4, 5],
-                channel: 'universal',
-                range: 10,
-                command: 'TRIGGER'
-            };
-        }
+        cell.state.data = {
+            directions: [0, 1, 2, 3, 4, 5],
+            channel: 'universal',
+            range: 1000,
+            command: 'TRIGGER',
+            ...cell.state.data
+        };
     },
 
     onClick: onWaveClick,

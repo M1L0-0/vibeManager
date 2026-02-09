@@ -6,7 +6,7 @@
 import { PamModule, Cell, Signal } from '@/lib/vibe-core';
 import { useGridStore } from '@/store/grid-store';
 import { getNeighbors, hexToId } from '@/core/grid/hex';
-import { handleStandardWavePropagation } from '@/core/grid/propagation';
+import { handleStandardWavePropagation, createImpulse } from '@/core/grid/propagation';
 import { StemDNA } from '@/pams/dna-catalog';
 
 export const StemCell: PamModule = {
@@ -19,36 +19,17 @@ export const StemCell: PamModule = {
         }
     },
 
-    onClick: (cell: Cell) => {
+    onClick: (cellArg: Cell) => {
+        // FEAT: Fetch fresh state to bypass React stale closures
+        const cell = useGridStore.getState().cells.get(cellArg.id) || cellArg;
         console.log('🧬 Stem Cell clicked:', cell.id);
 
-        // Emit a signal to neighbors
-        const signal: Signal = {
-            id: `signal-${Date.now()}-${Math.random()}`,
-            type: 'pulse',
-            strength: 1.0,
-            sourceId: cell.id,
-            timestamp: Date.now(),
-            payload: { message: 'Hello from ' + cell.id },
-        };
-
-        // Propagate to neighbors using centralized helper
-        useGridStore.getState().propagateSignal(cell.id, signal, {
+        // Create Impulse (Handles standardized logic + range)
+        createImpulse(cell, 'wave', { message: 'Hello from ' + cell.id }, {
             speed: 5.0, // Standard pulse speed
             color: '#8b5cf6', // Purple for stem cell
-            type: 'linear'
-        });
-
-        // Toggle our own activity (same as receiving a signal)
-        const currentActivity = cell.state.activity;
-        const newActivity = currentActivity > 0.5 ? 0 : 1.0;
-
-        const store = useGridStore.getState();
-        store.updateCell(cell.id, {
-            state: {
-                ...cell.state,
-                activity: newActivity,
-            },
+            type: 'linear',
+            strength: 1.0
         });
     },
 

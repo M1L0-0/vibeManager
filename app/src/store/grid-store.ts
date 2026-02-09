@@ -38,7 +38,7 @@ interface GridState {
 
     // Centralized Propagation (Visuals + Delivery)
     // Centralized Propagation (Visuals + Delivery)
-    propagateSignal: (sourceId: string, signal: Signal, options?: { speed?: number, color?: string, type?: 'linear' | 'arc', directions?: number[] }) => void;
+    propagateSignal: (sourceId: string, signal: Signal, options?: { speed?: number, color?: string, type?: 'linear' | 'arc' | 'wobble', directions?: number[] }) => void;
 
     // Grouping
     mergeCells: (cellIdA: string, cellIdB: string) => void;

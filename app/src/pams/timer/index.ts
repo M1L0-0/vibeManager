@@ -26,17 +26,16 @@ export const TimerCell: PamModule = {
 
     onSpawn: (cell: Cell) => {
         // Initialize timer state if needed
-        if (!cell.state.data) {
-            cell.state.data = {
-                maxTime: 3, // seconds
-                timeRemaining: 3,
-                isRunning: false, // Default to not running on spawn
-                lastTick: Date.now(), // Initialize lastTick
-                autoRestart: false,
-                loop: false,
-                paused: false
-            } as TimerData;
-        }
+        cell.state.data = {
+            maxTime: 3, // seconds
+            timeRemaining: 3,
+            isRunning: false, // Default to not running on spawn
+            lastTick: Date.now(), // Initialize lastTick
+            autoRestart: false,
+            loop: false,
+            paused: false,
+            ...cell.state.data
+        } as TimerData;
     },
 
     onClick: (cell: Cell) => {

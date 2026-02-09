@@ -134,6 +134,7 @@ export function createImpulse(
         range?: number;
         speed?: number; // Override calculated speed
         color?: string; // Particle color
+        type?: 'linear' | 'arc' | 'wobble'; // Movement pattern
         command?: string; // 'TRIGGER', etc
         inheritLastFired?: boolean; // If true, checks cooldown
     } = {}
@@ -184,7 +185,7 @@ export function createImpulse(
     // Propagate
     useGridStore.getState().propagateSignal(cell.id, signal, {
         speed: speed,
-        type: 'arc', // Default
+        type: options.type || 'arc', // Default to arc if not specified
         directions: directions,
         color: options.color
     });

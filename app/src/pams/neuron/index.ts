@@ -18,14 +18,13 @@ export const NeuronCell: PamModule = {
 
     onSpawn: (cell: Cell) => {
         // Initialize state
-        if (!cell.state.data) {
-            cell.state.data = {
-                operation: 'AND',
-                currentInputs: 0,
-                directions: [0, 1, 2, 3, 4, 5], // Omni-directional output by default
-                range: 5, // Shorter range for logic connections
-            };
-        }
+        cell.state.data = {
+            operation: 'AND',
+            currentInputs: 0,
+            directions: [0, 1, 2, 3, 4, 5], // Omni-directional output by default
+            range: 5, // Shorter range for logic connections
+            ...cell.state.data
+        };
     },
 
     onSignal: (cell: Cell, signal: Signal) => {

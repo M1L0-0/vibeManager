@@ -21,8 +21,15 @@ export const YourCell: PamModule = {
         description: 'Does something amazing',
     },
     
+    // ✅ CORRECT INITIALIZATION PATTERN
     onSpawn: (cell) => {
-        // Initialize cell state
+        // ALWAYS use spread syntax to merge defaults with existing data.
+        // DO NOT check "if (!cell.state.data)" because it initializes as empty object {} !
+        cell.state.data = {
+            myDefaultProp: 100,
+            someSetting: 'value',
+            ...cell.state.data // Valid overrides/hydration
+        };
     },
     
     onClick: (cell) => {
@@ -128,3 +135,5 @@ Failure to use the central registry means new cell types will be "invisible" to 
 - Interaction logic broken
 
 **Always import `REGISTRY` or `getAllCellTypes()` from `@/pams/registry`.**
+
+---
