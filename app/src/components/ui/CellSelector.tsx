@@ -96,7 +96,7 @@ export function CellSelector() {
                                 key={pam.dna.id}
                                 onClick={() => handleSelectCell(pam.dna.id)}
                                 className={cn(
-                                    "flex items-center gap-3 p-2 rounded-lg transition-all border text-left group",
+                                    "flex items-center gap-3 p-2 rounded-lg transition-all border text-left group min-h-[64px]",
                                     isSelected
                                         ? "bg-gray-800 border-purple-500/50 ring-1 ring-purple-500/50"
                                         : "bg-transparent border-transparent hover:bg-gray-800 hover:border-gray-700"
@@ -112,7 +112,7 @@ export function CellSelector() {
                                     <div className={cn("font-medium text-sm", isSelected ? "text-white" : "text-gray-300")}>
                                         {pam.dna.name}
                                     </div>
-                                    <div className="text-[10px] text-gray-500 leading-tight">
+                                    <div className="text-[10px] text-gray-500 leading-tight line-clamp-2">
                                         {pam.dna.description}
                                     </div>
                                 </div>

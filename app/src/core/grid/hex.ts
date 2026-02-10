@@ -89,8 +89,8 @@ function hexRound(hex: HexCoord): HexCoord {
  */
 export function getNeighbors(hex: HexCoord): HexCoord[] {
   return HEX_DIRECTIONS.map((dir) => ({
-    q: hex.q + dir.q,
-    r: hex.r + dir.r,
+    q: Number(hex.q) + dir.q,
+    r: Number(hex.r) + dir.r,
   }));
 }
 
@@ -98,9 +98,14 @@ export function getNeighbors(hex: HexCoord): HexCoord[] {
  * Calculate distance between two hexes
  */
 export function hexDistance(a: HexCoord, b: HexCoord): number {
-  const s1 = -a.q - a.r;
-  const s2 = -b.q - b.r;
-  return (Math.abs(a.q - b.q) + Math.abs(a.r - b.r) + Math.abs(s1 - s2)) / 2;
+  const aq = Number(a.q);
+  const ar = Number(a.r);
+  const bq = Number(b.q);
+  const br = Number(b.r);
+
+  const s1 = -aq - ar;
+  const s2 = -bq - br;
+  return (Math.abs(aq - bq) + Math.abs(ar - br) + Math.abs(s1 - s2)) / 2;
 }
 
 /**

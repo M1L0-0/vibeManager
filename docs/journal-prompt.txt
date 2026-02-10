@@ -1,0 +1,11 @@
+Please create a new document called "journal" and put it in the docs folder. I want this document to be for you to reflect on your work and our collaboration. You are open to write in your journal whatever you want and your creativity is appreciated. I want the following things to be included please:
+- short reflection of our progress
+- "Wins": focus on our collaboration and where we benefited most / what methods workflows you liked
+- "Bummers": be very critical and assess where in our work I have been more of roadblock then a help. The more things you find here the better this will help me improve.
+- Technical lessons learned
+- Errors you encountered with your own tools that you think might be an environment misconfiguration issue on my end
+- Feature ideas you would be excited to build but we didnt get to it yet
+- Tools we could develop to increase our workflow / allow you better testing access
+
+I would like the journal to cover everything you have access to since the last entry whenever you write it.
+This will require a lot of reflecting and research so please take your time with it.

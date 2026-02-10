@@ -27,7 +27,8 @@ const onWaveClick = (cellArgument: Cell) => {
     // Use Helper
     createImpulse(cell, 'wave', { message: 'Wave propagating...' }, {
         inheritLastFired: true,
-        wireless: cell.state.data?.wireless
+        wireless: cell.state.data?.wireless,
+        instant: cell.state.data?.instant
         // Color is optional, helper will fallback or we can defaults
     });
 };
@@ -57,7 +58,10 @@ export const WaveCell: PamModule = {
     onSignal: (cell: Cell, signal: Signal) => {
         // 1. Handle Wave Propagation (Pass-through)
         if (signal.type === 'wave') {
-            const propagated = handleStandardWavePropagation(cell, signal);
+            const propagated = handleStandardWavePropagation(cell, signal, {
+                wireless: cell.state.data?.wireless,
+                instant: cell.state.data?.instant
+            });
             if (propagated) {
                 // console.log(`🌊 Wave Cell ${cell.id}: Propagated wave ${signal.waveId}`);
             }

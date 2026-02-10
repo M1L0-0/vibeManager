@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { HexGrid } from './HexGrid';
 import { SignalOverlay } from './SignalOverlay';
 import { NebulaBackground } from './NebulaBackground';
@@ -22,6 +22,11 @@ export function Viewport() {
     // Local drag state is fine
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+    // Center viewport on mount
+    useEffect(() => {
+        setPan({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+    }, [setPan]);
 
     // Disable viewport panning when in transplant mode (to prevent conflict with drag-and-drop)
     const canDragViewport = !(
@@ -62,25 +67,36 @@ export function Viewport() {
         };
     }, [isDragging, canDragViewport, dragStart]);
 
-    const handleWheel = (e: React.WheelEvent) => {
-        e.preventDefault();
+    const viewportRef = useRef<HTMLDivElement>(null);
 
-        // Zoom-to-cursor logic
-        const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-        const newZoom = Math.max(0.1, Math.min(8, zoom * zoomFactor)); // Increased zoom range for infinite feel
+    // Handle Wheel (Zoom) via imperative listener to allow preventDefault (non-passive)
+    useEffect(() => {
+        const el = viewportRef.current;
+        if (!el) return;
 
-        const mouseX = e.clientX;
-        const mouseY = e.clientY;
+        const onWheel = (e: WheelEvent) => {
+            e.preventDefault();
 
-        // Calculate new pan to keep mouse position stationary in world space
-        // world_point = (screen_point - pan) / old_zoom
-        // new_pan = screen_point - world_point * new_zoom
-        const newPanX = mouseX - ((mouseX - pan.x) / zoom) * newZoom;
-        const newPanY = mouseY - ((mouseY - pan.y) / zoom) * newZoom;
+            // Zoom-to-cursor logic
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            const newZoom = Math.max(0.1, Math.min(8, zoom * zoomFactor));
 
-        setZoom(newZoom);
-        setPan({ x: newPanX, y: newPanY });
-    };
+            const mouseX = e.clientX;
+            const mouseY = e.clientY;
+
+            const newPanX = mouseX - ((mouseX - pan.x) / zoom) * newZoom;
+            const newPanY = mouseY - ((mouseY - pan.y) / zoom) * newZoom;
+
+            setZoom(newZoom);
+            setPan({ x: newPanX, y: newPanY });
+        };
+
+        el.addEventListener('wheel', onWheel, { passive: false });
+        // Clean up
+        return () => {
+            el.removeEventListener('wheel', onWheel);
+        };
+    }, [pan, zoom, setZoom, setPan]);
 
     // Hex Grid Dimensions (from hex.ts)
     const HEX_SIZE = 40;
@@ -99,6 +115,7 @@ export function Viewport() {
 
     return (
         <div
+            ref={viewportRef}
             className="infinite-viewport"
             style={{
                 width: '100vw',
@@ -109,7 +126,6 @@ export function Viewport() {
                 cursor: canDragViewport ? (isDragging ? 'grabbing' : 'grab') : 'default',
             }}
             onMouseDown={handleMouseDown}
-            onWheel={handleWheel}
             onClick={(e) => {
                 // If dragging, ignore click (it was a drag end)
                 // We track this via a small heuristic or ref

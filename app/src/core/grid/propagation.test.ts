@@ -1,4 +1,4 @@
-import { handleStandardWavePropagation } from './propagation';
+import { handleStandardWavePropagation, createImpulse } from './propagation';
 import { useGridStore } from '@/store/grid-store';
 import { Cell, Signal } from '@/lib/vibe-core';
 
@@ -28,12 +28,17 @@ describe('Signal Propagation', () => {
 
     const createCell = (id: string, groupId?: string): Cell => ({
         id,
-        q: 0,
-        r: 0,
-        type: 'STANDARD',
+        coord: { q: 0, r: 0 },
+        dna: { id: 'STANDARD', name: 'Standard', version: '1.0', color: '#fff' }, // Fix DNA structure
         state: {
-            type: 'STANDARD',
-        }
+            energy: 100,
+            activity: 0,
+            seenSignals: new Set(),
+            data: {},
+            groupId
+        },
+        signals: [],
+        createdAt: Date.now()
     });
 
     const createSignal = (waveId: string, sourceGroupId?: string): Signal => ({
@@ -104,5 +109,65 @@ describe('Signal Propagation', () => {
                 })
             })
         );
+    });
+    it('should deliver instantly to neighbors when instant is true', () => {
+        const cell = createCell('0,0');
+        const signal = createSignal('wave-instant');
+
+        const neighbor = createCell('1,0');
+        neighbor.coord = { q: 1, r: -1 }; // Explicit neighbor coord (0,0 neighbor is 1,-1 or 1,0 depending on orientation, standard hex neighbors of 0,0 are 1,0 1,-1 0,-1 -1,0 -1,1 0,1)
+
+        mockCells.set(cell.id, cell);
+        mockCells.set(neighbor.id, neighbor);
+
+        // Mock getCellAt to return neighbor
+        const mockGetCellAt = jest.fn((coord) => {
+            // Simple mock: if coord matches neighbor, return neighbor
+            if (coord.q === 1 && coord.r === -1) return neighbor;
+            if (coord.q === 0 && coord.r === 0) return cell;
+            return undefined;
+        });
+
+        (useGridStore.getState as unknown as jest.Mock).mockReturnValue({
+            propagateSignal: mockPropagateSignal,
+            updateCell: mockUpdateCell,
+            cells: mockCells,
+            deliverSignal: jest.fn(),
+            getCellAt: mockGetCellAt,
+            getAllCells: jest.fn().mockReturnValue([cell, neighbor])
+        });
+
+        const deliverSignalSpy = useGridStore.getState().deliverSignal;
+
+        const result = handleStandardWavePropagation(cell, signal, { instant: true });
+
+        expect(result).toBe(true);
+        expect(deliverSignalSpy).toHaveBeenCalled();
+        expect(mockPropagateSignal).not.toHaveBeenCalled();
+    });
+
+    it('createImpulse should deliver instantly to neighbors when instant is true (wireless false)', () => {
+        const cell = createCell('0,0');
+        const neighbor = createCell('1,0');
+        neighbor.coord = { q: 1, r: -1 }; // Neighbor
+
+        mockCells.set(cell.id, cell);
+        mockCells.set(neighbor.id, neighbor);
+
+        (useGridStore.getState as unknown as jest.Mock).mockReturnValue({
+            propagateSignal: mockPropagateSignal,
+            updateCell: mockUpdateCell,
+            cells: mockCells,
+            deliverSignal: jest.fn(),
+            getCellAt: jest.fn(), // Not used by robust fix
+            getAllCells: jest.fn().mockReturnValue([cell, neighbor])
+        });
+
+        const deliverSignalSpy = useGridStore.getState().deliverSignal;
+
+        createImpulse(cell, 'wave', {}, { instant: true, wireless: false });
+
+        expect(deliverSignalSpy).toHaveBeenCalledWith(neighbor.id, expect.any(Object));
+        expect(mockPropagateSignal).not.toHaveBeenCalled();
     });
 });

@@ -46,6 +46,9 @@ interface GridState {
 
     // Grouping
     mergeCells: (cellIdA: string, cellIdB: string) => void;
+    // Serialization
+    exportGrid: () => string;
+    importGrid: (jsonString: string) => void;
 }
 
 export const useGridStore = create<GridState>((set, get) => ({
@@ -290,10 +293,13 @@ export const useGridStore = create<GridState>((set, get) => ({
     },
 
     propagateSignal: (sourceId, signal, options) => {
-        // console.log('[GridStore] propagateSignal', sourceId, signal.type);
+        console.log('[GridStore] propagateSignal', sourceId, signal.type);
         const state = get();
         const sourceCell = state.cells.get(sourceId);
-        if (!sourceCell) return;
+        if (!sourceCell) {
+            console.warn('[GridStore] propagateSignal: Source cell not found', sourceId);
+            return;
+        }
 
         // Unified Group Emission Logic
         // If source is part of a group, we treat the entire group as the source.
@@ -312,6 +318,8 @@ export const useGridStore = create<GridState>((set, get) => ({
                     const member = state.cells.get(memberId);
                     if (member) emitters.push(member);
                 });
+            } else {
+                console.warn('[GridStore] propagateSignal: Group not found in index', sourceGroupId);
             }
         }
 
@@ -319,6 +327,8 @@ export const useGridStore = create<GridState>((set, get) => ({
         if (emitters.length === 0) {
             emitters.push(sourceCell);
         }
+
+        console.log('[GridStore] Emitters count:', emitters.length);
 
         const newParticles: Particle[] = [];
 
@@ -348,7 +358,7 @@ export const useGridStore = create<GridState>((set, get) => ({
                         targetId: target.id,
                         signal: nextSignal,
                         progress: 0,
-                        speed: options?.speed || 5.0,
+                        speed: (options?.speed || 5.0) / Math.max(1, dist),
                         color: particleColor,
                         type: options?.type || 'arc'
                     });
@@ -376,6 +386,8 @@ export const useGridStore = create<GridState>((set, get) => ({
 
             if (!emissionDirections) emissionDirections = [0, 1, 2, 3, 4, 5];
 
+            console.log(`[GridStore] Processing emitter ${emitter.id} at ${emitter.coord.q},${emitter.coord.r}. Neighbors:`, neighbors);
+
             neighbors.forEach((neighborCoord, directionIndex) => {
                 if (emissionDirections && !emissionDirections.includes(directionIndex)) {
                     return;
@@ -383,6 +395,8 @@ export const useGridStore = create<GridState>((set, get) => ({
 
                 const neighborId = hexToId(neighborCoord);
                 const neighborCell = state.cells.get(neighborId);
+
+                if (neighborCell) console.log(`  -> Found neighbor ${neighborId}`);
 
                 // Don't emit back into own group!
                 if (neighborCell && neighborCell.state.groupId === sourceGroupId && sourceGroupId) {
@@ -528,5 +542,74 @@ export const useGridStore = create<GridState>((set, get) => ({
             console.log(`Merged ${cellIdA} and ${cellIdB} into group ${finalGroupId}`);
             return { cells: newCells, groups: newGroups };
         });
+    },
+
+    exportGrid: () => {
+        const state = get();
+        // Serialize Cells (Map -> Array)
+        const serializableCells = Array.from(state.cells.values()).map(cell => ({
+            ...cell,
+            state: {
+                ...cell.state,
+                seenSignals: cell.state.seenSignals ? Array.from(cell.state.seenSignals) : []
+            }
+        }));
+
+        return JSON.stringify({
+            version: "1.0",
+            timestamp: Date.now(),
+            cells: serializableCells
+        }, null, 2);
+    },
+
+    importGrid: (jsonString: string) => {
+        try {
+            const data = JSON.parse(jsonString);
+
+            if (!data.cells || !Array.isArray(data.cells)) {
+                console.error("Invalid grid file format");
+                return;
+            }
+
+            const newCells = new Map<string, Cell>();
+            const newGroups = new Map<string, Set<string>>();
+
+            // Should clear previous state? Yes.
+            // But we need to handle the import carefully.
+
+            data.cells.forEach((rawCell: any) => {
+                const cell: Cell = {
+                    ...rawCell,
+                    state: {
+                        ...rawCell.state,
+                        seenSignals: new Set(rawCell.state.seenSignals || [])
+                    }
+                };
+
+                newCells.set(cell.id, cell);
+
+                // Rebuild Group Index
+                if (cell.state.groupId) {
+                    const groupSet = newGroups.get(cell.state.groupId) || new Set();
+                    groupSet.add(cell.id);
+                    newGroups.set(cell.state.groupId, groupSet);
+                }
+            });
+
+            set({
+                cells: newCells,
+                groups: newGroups,
+                signals: [],
+                particles: []
+            });
+            console.log(`Imported ${newCells.size} cells successfully.`);
+            console.log('Rebuilt Groups:', newGroups.size);
+            if (data.cells.length > 0) {
+                console.log('Importing Cell 0 coord type:', typeof data.cells[0]?.coord?.q);
+            }
+
+        } catch (e) {
+            console.error("Failed to import grid:", e);
+        }
     }
 }));
