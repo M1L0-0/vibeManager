@@ -67,7 +67,7 @@ export const TimerCell: PamModule = {
                 activity: data.isRunning ? cell.state.activity : 0, // Reset activity if paused
                 data
             },
-        });
+        }, { skipHistory: true });
     },
 
     onTick: (cell: Cell, deltaTime: number) => {
@@ -89,25 +89,33 @@ export const TimerCell: PamModule = {
                 ...cell.state,
                 data,
             },
-        });
+        }, { skipHistory: true });
 
         // Timer completed!
         if (data.timeRemaining <= 0 && data.isRunning) {
-            console.log(`⏱️ Timer Cell ${cell.id}: COMPLETED! Stop requested.`);
+            // console.log(`⏱️ Timer Data:`, data); 
+            // Send pulse (Impulse) - ONE TIME
+            // Derive color if missing (Robust Demo Fix)
+            let signalColor = (data as any).color;
+            if (!signalColor) {
+                if (data.maxTime <= 0.5) signalColor = '#ef4444'; // Fast = Red
+                else if (data.maxTime <= 1.5) signalColor = '#22c55e'; // Medium = Green
+                else signalColor = '#3b82f6'; // Slow = Blue
+            }
+
+            // Send pulse (Impulse) - ONE TIME
+            createImpulse(cell, 'wave', { message: 'Timer completed!' }, {
+                strength: 1.0,
+                speed: 5.0,
+                color: signalColor,
+                command: 'TRIGGER'
+            });
 
             // Determine separate state for loop vs stop
             const shouldLoop = data.loop || data.autoRestart;
 
-            // Send pulse (Impulse)
-            createImpulse(cell, 'wave', { message: 'Timer completed!' }, {
-                strength: 1.0,
-                speed: 5.0,
-                color: '#f59e0b',
-                command: 'TRIGGER'
-            });
-
             if (shouldLoop) {
-                console.log(`⏱️ Timer Cell ${cell.id}: Auto-restarting...`);
+                // console.log(`⏱️ Timer Cell ${cell.id}: Auto-restarting...`);
                 const nextData = {
                     ...data,
                     timeRemaining: data.maxTime,
@@ -119,19 +127,18 @@ export const TimerCell: PamModule = {
                         ...cell.state,
                         data: nextData
                     },
-                });
+                }, { skipHistory: true });
             } else {
-                console.log(`⏱️ Timer Cell ${cell.id}: Stopping.`);
+                // console.log(`⏱️ Timer Cell ${cell.id}: Stopping.`);
                 // Stop running
-                // We use a fresh object to avoid any reference mutation issues from above
-                const nextData = { ...data, isRunning: false };
+                const nextData = { ...data, isRunning: false, timeRemaining: 0 };
 
                 useGridStore.getState().updateCell(cell.id, {
                     state: {
                         ...cell.state,
                         data: nextData
                     }
-                });
+                }, { skipHistory: true });
             }
         }
     },
@@ -153,7 +160,7 @@ export const TimerCell: PamModule = {
                         isRunning: false
                     }
                 }
-            });
+            }, { skipHistory: true });
             commandHandled = true;
         } else if (signal.command === 'PAUSE') {
             const data = cell.state.data as TimerData;
@@ -167,7 +174,7 @@ export const TimerCell: PamModule = {
                             isRunning: data.isRunning
                         }
                     }
-                });
+                }, { skipHistory: true });
             }
             commandHandled = true;
         }
@@ -189,8 +196,17 @@ export const TimerCell: PamModule = {
 
             // However, removing that block means I need to handle it here.
 
+            // Derive color if missing (Robust Demo Fix)
+            let signalColor = (cell.state.data as any).color;
+            if (!signalColor) {
+                const maxTime = cell.state.data?.maxTime || 3;
+                if (maxTime <= 0.5) signalColor = '#ef4444';
+                else if (maxTime <= 1.5) signalColor = '#22c55e';
+                else signalColor = '#3b82f6';
+            }
+
             const propagated = handleStandardWavePropagation(cell, signal, {
-                color: '#f59e0b'
+                color: signalColor
             });
 
             if (!propagated && signal.waveId && cell.state.seenSignals?.has(signal.waveId)) {
@@ -214,7 +230,7 @@ export const TimerCell: PamModule = {
 
                     useGridStore.getState().updateCell(cell.id, {
                         state: { ...cell.state, data }
-                    });
+                    }, { skipHistory: true });
                 }
             }
             return; // Stop after wave handling

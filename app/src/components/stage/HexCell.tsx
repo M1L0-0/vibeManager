@@ -18,6 +18,7 @@ interface HexCellProps {
     onMouseDown?: (cell: Cell) => void;
     onMouseUp?: (cell: Cell) => void;
     connectedSides?: boolean[]; // Array of 6 booleans, true if connected to group neighbor
+    isSelected?: boolean;
 }
 
 // Memoized HexCell to prevent unnecessary re-renders of the entire grid
@@ -27,7 +28,8 @@ export const HexCell = memo(function HexCell({
     onRightClick,
     onMouseDown,
     onMouseUp,
-    connectedSides = [false, false, false, false, false, false]
+    connectedSides = [false, false, false, false, false, false],
+    isSelected = false
 }: HexCellProps) {
     const position = hexToPixel(cell.coord);
     // Removed legacy local activity decay effect. Activity is now driven by store updates.
@@ -52,11 +54,11 @@ export const HexCell = memo(function HexCell({
                 onClick(cell);
             }}
             onMouseDown={(e) => {
-                e.stopPropagation();
+                // e.stopPropagation(); // Allow bubbling so Viewport can start selection drag
                 onMouseDown?.(cell);
             }}
             onMouseUp={(e) => {
-                e.stopPropagation();
+                // e.stopPropagation(); // Allow bubbling so Viewport can end selection
                 onMouseUp?.(cell);
             }}
             onContextMenu={(e) => {
@@ -67,11 +69,24 @@ export const HexCell = memo(function HexCell({
             style={{ cursor: 'pointer', userSelect: 'none' }}
             data-cell-id={cell.id}
         >
+            {/* Selection Highlight */}
+            {isSelected && (
+                <motion.path
+                    d={hexPath()}
+                    fill="none"
+                    stroke="#00ffff"
+                    strokeWidth={4}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                />
+            )}
+
             {/* Cell body */}
             {/* Cell body - background only */}
             <motion.path
                 d={hexPath()}
-                fill={cell.dna.color}
+                fill={(cell.state.data as any)?.displayColor || cell.dna.color}
                 stroke="none"
                 initial={{ opacity: 0.8 }}
                 animate={{
@@ -180,8 +195,10 @@ export const HexCell = memo(function HexCell({
     // Check cell identity and properties that matter for rendering
     if (prev.cell.id !== next.cell.id) return false;
     if (prev.cell.dna.color !== next.cell.dna.color) return false;
+    if ((prev.cell.state.data as any)?.displayColor !== (next.cell.state.data as any)?.displayColor) return false;
     if (prev.cell.state.activity !== next.cell.state.activity) return false;
     if (prev.cell.state.energy !== next.cell.state.energy) return false;
+    if (prev.isSelected !== next.isSelected) return false; // Check selection
 
     // Check custom render dependencies form PAM
     const pam = getPamModule(prev.cell.dna.id);

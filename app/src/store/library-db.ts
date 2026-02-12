@@ -1,4 +1,5 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { DEFAULT_DISHES } from '@/seeds/demo-dishes';
 
 interface DishRecord {
     id: string;
@@ -43,6 +44,14 @@ class LibraryDB {
 
     async getAllDishes(): Promise<DishRecord[]> {
         const db = await this.dbPromise;
+
+        // ALWAYS refresh default demos to ensure latest code/fixes are applied.
+        // This fixes issues where 'valid but stale' demos persist in IndexedDB.
+        const tx = db.transaction('dishes', 'readwrite');
+        // We only overwrite the specific IDs in DEFAULT_DISHES
+        await Promise.all(DEFAULT_DISHES.map(dish => tx.store.put(dish)));
+        await tx.done;
+
         return db.getAllFromIndex('dishes', 'by-date');
     }
 

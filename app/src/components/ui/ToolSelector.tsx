@@ -7,7 +7,7 @@
 import { useToolStore } from '@/store/tool-store';
 import { getAllCellTypes } from '@/pams/registry';
 import { GlassButton, GlassPanel } from './Glass';
-import { Hand, Search, Dna, Eye, Sparkles, Eraser } from 'lucide-react';
+import { Hand, Search, Dna, Eye, Sparkles, Eraser, BoxSelect } from 'lucide-react';
 
 export function ToolSelector() {
     const interaction = useToolStore((state) => state.interaction);
@@ -21,6 +21,7 @@ export function ToolSelector() {
         if (interaction.type === 'HAND_IDLE') return 'hand';
         if (interaction.type.startsWith('INSPECT')) return 'inspect';
         if (interaction.type.startsWith('GENESIS')) return 'genesis';
+        if (interaction.type.startsWith('SELECT')) return 'select';
         if (interaction.type === 'ERASER_IDLE') return 'eraser';
         return null;
     };
@@ -28,6 +29,7 @@ export function ToolSelector() {
     // Helper to select tool
     const handleSelectTool = (toolId: string) => {
         if (toolId === 'hand') setToolHand();
+        if (toolId === 'select') useToolStore.getState().setToolSelect();
         if (toolId === 'inspect') setToolInspect();
         if (toolId === 'eraser') setToolEraser();
         if (toolId === 'genesis') {
@@ -46,6 +48,7 @@ export function ToolSelector() {
 
     const tools = [
         { id: 'hand', icon: Hand, label: 'Hand Tool', description: 'Interact with cells' },
+        { id: 'select', icon: BoxSelect, label: 'Selection Tool', description: 'Select area to Copy/Paste' },
         { id: 'inspect', icon: Search, label: 'Inspect Tool', description: 'View cell genome' },
         { id: 'genesis', icon: Dna, label: 'Genesis Tool', description: 'Create and arrange cells' },
         { id: 'eraser', icon: Eraser, label: 'Eraser Tool', description: 'Remove cells' },

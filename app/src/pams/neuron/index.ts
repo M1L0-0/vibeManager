@@ -66,7 +66,6 @@ export const NeuronCell: PamModule = {
         newInputBuffer++;
 
         // Update state
-        // Update state
         useGridStore.getState().updateCell(cell.id, {
             state: {
                 ...freshCell.state, // Use fresh state
@@ -78,7 +77,7 @@ export const NeuronCell: PamModule = {
                     currentInputs: newInputBuffer // Exposed for UI
                 }
             }
-        });
+        }, { skipHistory: true });
 
         // Schedule Evaluation (Debounce)
         // We set a timeout equal to the window. 
@@ -168,11 +167,11 @@ function evaluateLogic(cell: Cell, inputCount: number) {
             state: {
                 activity: 0.2 // Low activity "Fizzle"
             }
-        });
+        }, { skipHistory: true });
         setTimeout(() => {
             useGridStore.getState().updateCell(cell.id, {
                 state: { activity: 0 }
-            });
+            }, { skipHistory: true });
         }, 200);
     }
 
@@ -187,5 +186,5 @@ function evaluateLogic(cell: Cell, inputCount: number) {
                 currentInputs: 0
             }
         }
-    });
+    }, { skipHistory: true });
 }

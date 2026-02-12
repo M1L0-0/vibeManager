@@ -114,7 +114,7 @@ export function handleStandardWavePropagation(
             speed: propagateSpeed,
             type: 'arc',
             directions: allowedDirections,
-            color: options.color,
+            color: options.color || signal.payload?.color, // Use payload color if local option is missing
             wireless: options.wireless
         });
     }
@@ -133,7 +133,7 @@ export function handleStandardWavePropagation(
             ...cell.state,
             ...updates
         }
-    });
+    }, { skipHistory: true });
 
     // Auto-reset activity after delay to allow visual pulse without storing every frame
     if (visualActivity !== false) {
@@ -142,8 +142,9 @@ export function handleStandardWavePropagation(
                 state: {
                     activity: 0
                 }
-            });
+            }, { skipHistory: true });
         }, 300);
+
     }
 
     return true;
@@ -187,7 +188,7 @@ export function createImpulse(
     // Physics Resolution: Options > Data > Default
     const delay = data?.speedDelay || 0.1;
     const speed = options.speed || (1 / Math.max(0.01, delay));
-    const range = options.range ?? (data?.range !== undefined ? data.range : 1); // Default 1 (was 10)
+    const range = options.range ?? (data?.range !== undefined ? data.range : 100); // Default 100 (was 1, which killed standard waves)
     const channelId = data?.channel || 'universal';
     const directions = data?.directions || [0, 1, 2, 3, 4, 5];
     const command = options.command as any || data?.command;
@@ -210,6 +211,7 @@ export function createImpulse(
             message: 'Impulse',
             originCell: cell.id,
             allowedDirections: directions,
+            color: options.color, // Persist initial color in payload
             ...payload
         },
     };
@@ -223,7 +225,7 @@ export function createImpulse(
     setTimeout(() => {
         useGridStore.getState().updateCell(cell.id, {
             state: { activity: 0 }
-        });
+        }, { skipHistory: true });
     }, 300);
 
     // Instant Propagation Logic
@@ -298,7 +300,7 @@ export function createImpulse(
                 lastFired: options.inheritLastFired ? now : data?.lastFired
             }
         },
-    });
-
+    }, { skipHistory: true });
     return waveId;
 }
+

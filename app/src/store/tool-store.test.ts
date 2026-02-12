@@ -20,7 +20,12 @@ describe('ToolStore FSM', () => {
     beforeEach(() => {
         useToolStore.setState({
             interaction: { type: 'HAND_IDLE' },
-            view: { showSynapticVision: false }
+            view: {
+                showSynapticVision: false,
+                pan: { x: 0, y: 0 },
+                zoom: 1,
+                showNebula: true
+            }
         });
 
         mockGridActions = {

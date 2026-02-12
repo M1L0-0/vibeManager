@@ -28,3 +28,9 @@
 - [ ] **WebGL Rewrite**: Switch grid rendering to PIXI.js or R3F.
 - [ ] **Zoom-to-Context**: Semantic Level of Detail (LOD). Zoom out to see "Clusters" instead of individual cells.
 - [ ] **Multiplayer**: Websocket synchronization of grid state.
+
+### Idea Pool 💡
+- [ ] **Battery Cell**: Accumulates charge from incoming signals; fires only when fully charged.
+- [ ] **Memory Cell**: Stores a binary state (ON/OFF), toggles on signal (Flip-Flop).
+- [ ] **Delay Cell**: Buffers a signal for N ticks before releasing it.
+- [ ] **Random Cell**: Emits signal to a random neighbor or direction when triggered.

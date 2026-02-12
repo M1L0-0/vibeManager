@@ -34,39 +34,31 @@ export const StemCell: PamModule = {
     },
 
     onSignal: (cell: Cell, signal: Signal) => {
-        // console.log(`🌱 Stem Cell ${cell.id} received signal:`, signal);
-
-        // Visual reaction (optional)
-        // Handle wave propagation (independent of command)
+        // Visual reaction
+        // Handle wave propagation (Standard)
         if (signal.type === 'wave') {
             const propagated = handleStandardWavePropagation(cell, signal, {
-                visualActivity: false // Disable auto-reset, we manage state manually below
+                visualActivity: 1.0 // Flash fully
             });
-            if (propagated) {
-                // If it's a new wave, also toggle local activity
-                const currentActivity = cell.state.activity;
-                const newActivity = currentActivity > 0.5 ? 0 : 1.0;
-
-                useGridStore.getState().updateCell(cell.id, {
-                    state: {
-                        ...cell.state,
-                        activity: newActivity
-                    }
-                });
-            }
+            // handleStandardWavePropagation handles auto-reset of activity
             return;
         }
 
-        // Handle non-wave signals (pulse, timer-pulse from neighbors)
-        const currentActivity = cell.state.activity;
-        const newActivity = currentActivity > 0.5 ? 0 : 1.0;
-
+        // Handle non-wave signals (pulse, etc)
+        // Just flash for feedback
         const store = useGridStore.getState();
         store.updateCell(cell.id, {
             state: {
                 ...cell.state,
-                activity: newActivity,
+                activity: 1.0,
             },
-        });
+        }, { skipHistory: true });
+
+        // Auto-reset
+        setTimeout(() => {
+            store.updateCell(cell.id, {
+                state: { activity: 0 }
+            }, { skipHistory: true });
+        }, 300);
     },
 };

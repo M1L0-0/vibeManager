@@ -8,6 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import { HexGrid } from './HexGrid';
 import { SignalOverlay } from './SignalOverlay';
 import { NebulaBackground } from './NebulaBackground';
+import { SelectionOverlay } from './SelectionOverlay';
 import { useToolStore } from '@/store/tool-store';
 import { pixelToHex } from '@/core/grid/hex';
 
@@ -16,6 +17,9 @@ export function Viewport() {
     const view = useToolStore((state) => state.view);
     const setPan = useToolStore((state) => state.setPan);
     const setZoom = useToolStore((state) => state.setZoom);
+    const startSelection = useToolStore((state) => state.startSelection);
+    const updateSelection = useToolStore((state) => state.updateSelection);
+    const endSelection = useToolStore((state) => state.endSelection);
 
     const { pan, zoom } = view;
 
@@ -36,25 +40,61 @@ export function Viewport() {
     );
 
     const handleMouseDown = (e: React.MouseEvent) => {
+        // Selection Logic
+        if (interaction.type === 'SELECT_IDLE') {
+            // Don't start selection immediately. Wait for threshold.
+            selectionDragStartRef.current = { x: e.clientX, y: e.clientY };
+            return;
+        }
+
         if (!canDragViewport) return;
         setIsDragging(true);
         setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     };
 
+    const selectionDragStartRef = useRef<{ x: number, y: number } | null>(null);
+
     // Use window listeners for drag to prevent UI interference and text selection
     useEffect(() => {
-        if (!isDragging) return;
-
         const handleWindowMouseMove = (e: MouseEvent) => {
-            if (canDragViewport) {
-                setPan({
-                    x: e.clientX - dragStart.x,
-                    y: e.clientY - dragStart.y,
-                });
+            const currentInteraction = useToolStore.getState().interaction;
+            const currentPan = useToolStore.getState().view.pan;
+            const currentZoom = useToolStore.getState().view.zoom;
+
+            // Handle Selection Drag Start (Threshold)
+            if (currentInteraction.type === 'SELECT_IDLE' && selectionDragStartRef.current) {
+                const start = selectionDragStartRef.current;
+                const dx = e.clientX - start.x;
+                const dy = e.clientY - start.y;
+                if (dx * dx + dy * dy > 25) { // 5px threshold
+                    // Start dragging
+                    const worldX = (start.x - currentPan.x) / currentZoom;
+                    const worldY = (start.y - currentPan.y) / currentZoom;
+                    // Trigger start
+                    useToolStore.getState().startSelection({ x: worldX, y: worldY });
+                    selectionDragStartRef.current = null; // Consumed
+                }
             }
+
+            if (currentInteraction.type === 'SELECT_DRAGGING') {
+                const worldX = (e.clientX - currentPan.x) / currentZoom;
+                const worldY = (e.clientY - currentPan.y) / currentZoom;
+                updateSelection({ x: worldX, y: worldY });
+                return;
+            }
+
+            // Note: We access local isDragging via ref because we can't easily access state inside this effect without deps
+            // However, dragging viewport logic relies on React state `isDragging`. 
+            // We can check `canDragViewport` from global interaction too.
         };
 
         const handleWindowMouseUp = () => {
+            selectionDragStartRef.current = null; // Reset threshold trigger
+            const currentInteraction = useToolStore.getState().interaction;
+            if (currentInteraction.type === 'SELECT_DRAGGING') {
+                endSelection();
+                return;
+            }
             setIsDragging(false);
         };
 
@@ -65,7 +105,25 @@ export function Viewport() {
             window.removeEventListener('mousemove', handleWindowMouseMove);
             window.removeEventListener('mouseup', handleWindowMouseUp);
         };
-    }, [isDragging, canDragViewport, dragStart]);
+    }, [updateSelection, endSelection]); // Minimal dependencies
+
+    // Separate effect for Viewport Dragging to use local React state (isDragging) correctly
+    // We keep this separate because it relies on `isDragging` and `dragStart` which change often during interaction
+    useEffect(() => {
+        if (!isDragging) return;
+
+        const handleDragMove = (e: MouseEvent) => {
+            if (canDragViewport) {
+                setPan({
+                    x: e.clientX - dragStart.x,
+                    y: e.clientY - dragStart.y,
+                });
+            }
+        };
+
+        window.addEventListener('mousemove', handleDragMove);
+        return () => window.removeEventListener('mousemove', handleDragMove);
+    }, [isDragging, canDragViewport, dragStart, setPan]);
 
     const viewportRef = useRef<HTMLDivElement>(null);
 
@@ -123,7 +181,7 @@ export function Viewport() {
                 overflow: 'hidden',
                 background: '#1a1a24', // Lighter, slightly purple-tinted dark background
                 position: 'relative',
-                cursor: canDragViewport ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                cursor: interaction.type === 'PASTE_IDLE' ? 'copy' : (canDragViewport ? (isDragging ? 'grabbing' : 'grab') : 'default'),
             }}
             onMouseDown={handleMouseDown}
             onClick={(e) => {
@@ -189,6 +247,7 @@ export function Viewport() {
             >
                 <HexGrid />
                 <SignalOverlay />
+                <SelectionOverlay />
             </div>
 
             {/* Info overlay */}

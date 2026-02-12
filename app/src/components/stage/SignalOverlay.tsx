@@ -40,7 +40,7 @@ export const SignalOverlay = memo(function SignalOverlay() {
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                pointerEvents: 'none',
+                pointerEvents: 'none', // Prevent blocking clicks
                 overflow: 'visible',
                 zIndex: 10
             }}

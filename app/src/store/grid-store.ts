@@ -16,6 +16,15 @@ interface GridState {
     // Optimizes O(N) lookups to O(1)
     groups: Map<string, Set<string>>;
 
+    // Undo/Redo History
+    history: {
+        past: Array<{ cells: Map<string, Cell>; groups: Map<string, Set<string>> }>;
+        future: Array<{ cells: Map<string, Cell>; groups: Map<string, Set<string>> }>;
+    };
+
+    // Clipboard
+    clipboard: Cell[];
+
     // Active signals being propagated
     signals: Signal[];
 
@@ -23,7 +32,7 @@ interface GridState {
     spawnCell: (coord: HexCoord, dna: PamDNA, pamModule?: PamModule) => void;
     killCell: (cellId: string) => void;
     // Allow deep partial for state updates
-    updateCell: (cellId: string, updates: Omit<Partial<Cell>, 'state'> & { state?: Partial<Cell['state']> }) => void;
+    updateCell: (cellId: string, updates: Omit<Partial<Cell>, 'state'> & { state?: Partial<Cell['state']> }, options?: { skipHistory?: boolean }) => void;
     addSignal: (signal: Signal) => void;
     clearSignals: () => void;
 
@@ -49,15 +58,28 @@ interface GridState {
     // Serialization
     exportGrid: () => string;
     importGrid: (jsonString: string) => void;
+    clear: () => void;
+
+    // History Actions
+    undo: () => void;
+    redo: () => void;
+    pushHistory: () => void;
+
+    // Clipboard Actions
+    copy: (cellIds: Set<string>) => void;
+    paste: (targetCoord: HexCoord) => void;
 }
 
 export const useGridStore = create<GridState>((set, get) => ({
     cells: new Map(),
     groups: new Map(),
+    clipboard: [],
     signals: [],
     particles: [],
+    history: { past: [], future: [] },
 
     spawnCell: (coord, dna, pamModule) => {
+        get().pushHistory(); // Save state before spawn
         const cellId = hexToId(coord);
         const existing = get().cells.get(cellId);
 
@@ -92,6 +114,7 @@ export const useGridStore = create<GridState>((set, get) => ({
     },
 
     killCell: (cellId) => {
+        get().pushHistory(); // Save state before kill
         set((state) => {
             const cell = state.cells.get(cellId);
             const newCells = new Map(state.cells);
@@ -128,7 +151,11 @@ export const useGridStore = create<GridState>((set, get) => ({
         });
     },
 
-    updateCell: (cellId, updates) => {
+    updateCell: (cellId, updates, options) => {
+        // Only push history if meaningful change (e.g. not just activity/energy tick)
+        if (!options?.skipHistory) {
+            get().pushHistory();
+        }
         set((state) => {
             // console.log('[GridStore] updateCell', cellId, updates);
             const cell = state.cells.get(cellId);
@@ -437,6 +464,7 @@ export const useGridStore = create<GridState>((set, get) => ({
     },
 
     mergeCells: (cellIdA, cellIdB) => {
+        get().pushHistory();
         set((state) => {
             const cellA = state.cells.get(cellIdA);
             const cellB = state.cells.get(cellIdB);
@@ -578,8 +606,13 @@ export const useGridStore = create<GridState>((set, get) => ({
             // But we need to handle the import carefully.
 
             data.cells.forEach((rawCell: any) => {
+                // AUTO-HEAL: Ensure ID matches coordinate
+                // Legacy or Demo dishes might have random IDs which breaks propagation lookup.
+                const correctId = hexToId(rawCell.coord);
+
                 const cell: Cell = {
                     ...rawCell,
+                    id: correctId, // Force correct ID
                     state: {
                         ...rawCell.state,
                         seenSignals: new Set(rawCell.state.seenSignals || [])
@@ -600,16 +633,241 @@ export const useGridStore = create<GridState>((set, get) => ({
                 cells: newCells,
                 groups: newGroups,
                 signals: [],
-                particles: []
+                particles: [],
+                history: { past: [], future: [] } // Clear history on import
             });
             console.log(`Imported ${newCells.size} cells successfully.`);
             console.log('Rebuilt Groups:', newGroups.size);
-            if (data.cells.length > 0) {
-                console.log('Importing Cell 0 coord type:', typeof data.cells[0]?.coord?.q);
+
+            // DEBUG: Check for Demo Dish anomalies
+            const brokenPixel = Array.from(newCells.values()).find(c => c.coord.q === 3 && c.coord.r === -1);
+            if (brokenPixel) {
+                console.log('🔍 DEBUG: Checking "broken" pixel at 3,-1:', {
+                    id: brokenPixel.id,
+                    dnaId: brokenPixel.dna.id,
+                    color: brokenPixel.dna.color,
+                    dataColor: (brokenPixel.state.data as any)?.displayColor,
+                    type: brokenPixel.dna.name
+                });
+            } else {
+                console.log('⚠️ DEBUG: Could not find pixel at 3,-1');
+            }
+
+            const timer = Array.from(newCells.values()).find(c => c.dna.id === 'timer');
+            if (timer) {
+                console.log('🔍 DEBUG: Checking first Timer:', {
+                    id: timer.id,
+                    maxTime: (timer.state.data as any)?.maxTime,
+                    isRunning: (timer.state.data as any)?.isRunning,
+                    seenSignals: timer.state.seenSignals
+                });
             }
 
         } catch (e) {
             console.error("Failed to import grid:", e);
         }
+    },
+
+    clear: () => {
+        set({
+            cells: new Map(),
+            groups: new Map(),
+            signals: [],
+            particles: [],
+            history: { past: [], future: [] }
+        });
+    },
+
+    pushHistory: () => {
+        set((state) => {
+            const snapshot = {
+                cells: new Map(state.cells),
+                groups: new Map(state.groups) // Shallow copy of map, but Sets inside might need cloning if mutation happens?
+                // In killCell we clone map and modify set logic carefully.
+                // To be safe, let's deep clone groups map.
+            };
+
+            // Deep clone groups to be safe
+            const groupsClone = new Map<string, Set<string>>();
+            state.groups.forEach((v, k) => groupsClone.set(k, new Set(v)));
+
+            const newPast = [...state.history.past, { cells: snapshot.cells, groups: groupsClone }];
+            if (newPast.length > 50) newPast.shift(); // Limit history to 50 steps
+
+            return {
+                history: {
+                    past: newPast,
+                    future: []
+                }
+            };
+        });
+    },
+
+    undo: () => {
+        set((state) => {
+            const past = state.history.past;
+            if (past.length === 0) return state;
+
+            const previous = past[past.length - 1];
+            const newPast = past.slice(0, -1);
+
+            const currentCells = state.cells;
+            const restoredCells = new Map(previous.cells);
+
+            // Smart Undo: Preserve Runtime State (Activity, Signals) from current "future" state
+            // to prevent the simulation from jumping back in time visually.
+            restoredCells.forEach((restoredCell, id) => {
+                const currentCell = currentCells.get(id);
+                // Only preserve if identity matches (same DNA)
+                if (currentCell && currentCell.dna.id === restoredCell.dna.id) {
+                    restoredCell.state.activity = currentCell.state.activity;
+                    restoredCell.state.seenSignals = currentCell.state.seenSignals;
+                    restoredCell.signals = currentCell.signals;
+
+                    // Also preserve transient data if needed?
+                    // For now, activity/signals are the main "visual" components.
+                    // Data might be structural (like timer maxTime), so we should revert data.
+                    // But runtime data (like timeRemaining) might be nice to keep?
+                    // Complicated. Let's stick to activity/signals for "visual" continuity.
+
+                    // Actually, if we undo a placement, we don't want to reset everyone's timers if possible.
+                    // But if the restoration replaces the cell object...
+                    // Let's try to merge 'state.data' carefully?
+                    // No, data often contains config. We want to UNDO config changes.
+                    // So we MUST revert data.
+                    // But 'activity' is purely visual/transient usually.
+                }
+            });
+
+            const current = {
+                cells: new Map(state.cells),
+                groups: new Map<string, Set<string>>()
+            };
+            state.groups.forEach((v, k) => current.groups.set(k, new Set(v)));
+
+            return {
+                cells: restoredCells,
+                groups: previous.groups,
+                history: {
+                    past: newPast,
+                    future: [current, ...state.history.future]
+                }
+            };
+        });
+    },
+
+    redo: () => {
+        set((state) => {
+            const future = state.history.future;
+            if (future.length === 0) return state;
+
+            const next = future[0];
+            const newFuture = future.slice(1);
+
+            const current = {
+                cells: new Map(state.cells),
+                groups: new Map<string, Set<string>>()
+            };
+            state.groups.forEach((v, k) => current.groups.set(k, new Set(v)));
+
+            return {
+                cells: next.cells,
+                groups: next.groups,
+                history: {
+                    past: [...state.history.past, current],
+                    future: newFuture
+                }
+            };
+        });
+    },
+
+    copy: (cellIds) => {
+        const state = get();
+        const clipboard: Cell[] = [];
+        cellIds.forEach(id => {
+            const cell = state.cells.get(id);
+            if (cell) clipboard.push(cell);
+        });
+        set({ clipboard });
+        console.log(`📋 Copied ${clipboard.length} cells to clipboard`);
+    },
+
+    paste: (targetCoord) => {
+        const state = get();
+        if (state.clipboard.length === 0) return;
+
+        get().pushHistory();
+
+        // Calculate centroid or top-left of clipboard to determine offset
+        let minQ = Infinity, minR = Infinity;
+        state.clipboard.forEach(cell => {
+            if (cell.coord.q < minQ) minQ = cell.coord.q;
+            if (cell.coord.r < minR) minR = cell.coord.r;
+        });
+
+        // Calculate offset from minQ, minR to targetCoord
+        const qOffset = targetCoord.q - minQ;
+        const rOffset = targetCoord.r - minR;
+
+        const newCells = new Map(state.cells);
+        const newGroups = new Map(state.groups);
+
+        // Map old group IDs to new group IDs to separate pasted groups from originals
+        const groupMapping = new Map<string, string>();
+
+        state.clipboard.forEach(template => {
+            const newQ = template.coord.q + qOffset;
+            const newR = template.coord.r + rOffset;
+            const newCoord = { q: newQ, r: newR };
+            const newId = hexToId(newCoord);
+
+            // Handle Groups
+            let newGroupId = undefined;
+            if (template.state.groupId) {
+                if (!groupMapping.has(template.state.groupId)) {
+                    groupMapping.set(template.state.groupId, `group-${Date.now()}-${Math.random()}`);
+                }
+                newGroupId = groupMapping.get(template.state.groupId);
+            }
+
+            const newCell: Cell = {
+                ...template,
+                id: newId,
+                coord: newCoord,
+                state: {
+                    ...template.state,
+                    groupId: newGroupId,
+                    // Clear runtime state?
+                    energy: template.dna.id === 'stem' ? 100 : template.state.energy, // Reset logic depends on cell type
+                },
+                signals: [], // Clear signals logic
+                createdAt: Date.now()
+            };
+
+            // Kill existing at target
+            if (newCells.has(newId)) {
+                // Should use killCell logic to clean groups, but we are doing bulk update.
+                // If we overwrite, we should remove old one from its group.
+                const old = newCells.get(newId);
+                if (old && old.state.groupId) {
+                    const g = newGroups.get(old.state.groupId);
+                    if (g) {
+                        g.delete(newId);
+                        if (g.size === 0) newGroups.delete(old.state.groupId);
+                    }
+                }
+            }
+
+            newCells.set(newId, newCell);
+
+            if (newGroupId) {
+                const g = newGroups.get(newGroupId) || new Set();
+                g.add(newId);
+                newGroups.set(newGroupId, g);
+            }
+        });
+
+        set({ cells: newCells, groups: newGroups });
+        console.log(`📋 Pasted ${state.clipboard.length} cells at ${targetCoord.q},${targetCoord.r}`);
     }
 }));

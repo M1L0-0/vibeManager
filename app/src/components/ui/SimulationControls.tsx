@@ -4,12 +4,14 @@
 
 'use client';
 
-import { Play, Pause, StepForward, Download, Eye, EyeOff, Save, FolderOpen } from 'lucide-react';
+import { Play, Pause, StepForward, Download, Eye, EyeOff, Save, FolderOpen, Undo, Redo } from 'lucide-react';
+import { useEffect } from 'react';
 import { useSimulationStore } from '@/store/simulation-store';
 import { useGridStore } from '@/store/grid-store';
 import { cn } from '@/lib/utils';
 import { useRef, useState } from 'react';
 import { useToolStore } from '@/store/tool-store';
+import { pixelToHex } from '@/core/grid/hex';
 import { DishLibraryModal } from './DishLibraryModal';
 import { libraryDB } from '@/store/library-db';
 import { generateGridThumbnail } from '@/lib/thumbnail-generator';
@@ -23,8 +25,42 @@ export function SimulationControls() {
         setSpeed,
         incrementTick,
     } = useSimulationStore();
-    const { exportGrid, importGrid, getAllCells } = useGridStore(); // Need getAllCells for thumb
+    const { exportGrid, importGrid, getAllCells, undo, redo, history, copy, paste } = useGridStore(); // Need getAllCells for thumb
+    const { selection } = useToolStore();
+    const { pan, zoom } = useToolStore(state => state.view);
     const fileInputRef = useRef<HTMLInputElement>(null); // This ref is no longer used for upload, but kept for now if needed elsewhere.
+
+    // Undo/Redo Keyboard Shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    redo();
+                } else {
+                    undo();
+                }
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+                e.preventDefault();
+                redo();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                e.preventDefault();
+                if (selection.size > 0) {
+                    copy(selection);
+                }
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                e.preventDefault();
+                // Enter Paste Mode (Click to paste)
+                useToolStore.getState().setToolPaste();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [undo, redo, copy, paste, selection, pan, zoom]);
 
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
@@ -147,6 +183,25 @@ export function SimulationControls() {
                 <div className="w-px h-8 bg-white/10 mx-2" />
 
                 <div className="flex items-center gap-1">
+                    <button
+                        onClick={undo}
+                        disabled={history.past.length === 0}
+                        className="p-2 text-white/50 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Undo (Ctrl+Z)"
+                    >
+                        <Undo className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={redo}
+                        disabled={history.future.length === 0}
+                        className="p-2 text-white/50 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Redo (Ctrl+Y)"
+                    >
+                        <Redo className="w-4 h-4" />
+                    </button>
+
+                    <div className="w-px h-6 bg-white/10 mx-1" />
+
                     <button
                         onClick={handleSaveToLibrary}
                         title="Save to Incubator"

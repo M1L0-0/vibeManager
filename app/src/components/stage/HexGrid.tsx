@@ -17,9 +17,16 @@ export const HexGrid = memo(function HexGrid() {
     const cells = Array.from(cellsMap.values());
     const groups = useGridStore((state) => state.groups);
 
+    // Subscribe to selection state for rendering highlights
+    const selection = useToolStore((state) => state.selection);
+
     const handleGridEvent = useToolStore((state) => state.handleGridEvent);
     const view = useToolStore((state) => state.view);
     const { pan, zoom } = view;
+    const interaction = useToolStore((state) => state.interaction);
+
+    // Only show selection highlights if we are in Selection Mode
+    const showSelection = interaction.type.startsWith('SELECT');
 
     // Viewport Culling
     const visibleCells = cells.filter(cell => {
@@ -102,6 +109,7 @@ export const HexGrid = memo(function HexGrid() {
                                 onMouseDown={handleCellMouseDown}
                                 onMouseUp={handleCellMouseUp}
                                 connectedSides={connectedSides}
+                                isSelected={showSelection && selection.has(cell.id)}
                             />
                         );
                     })}

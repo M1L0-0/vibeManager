@@ -3,6 +3,7 @@ import { useGridStore } from '@/store/grid-store';
 import { X, Trash2, Upload, Download } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSimulationStore } from '@/store/simulation-store';
+import { DishValidator } from '@/core/grid/validator';
 
 interface DishLibraryModalProps {
     isOpen: boolean;
@@ -27,9 +28,25 @@ export function DishLibraryModal({ isOpen, onClose }: DishLibraryModalProps) {
     };
 
     const handleLoadDish = (dish: DishRecord) => {
-        importGrid(dish.data);
-        // setIsPlaying(false); // Can confuse user if they expect immediate interaction
-        onClose();
+        try {
+            const data = JSON.parse(dish.data);
+            const validation = DishValidator.validate(data);
+
+            if (!validation.isValid) {
+                alert(`Cannot load dish: \n${validation.errors.join('\n')}`);
+                return;
+            }
+            if (validation.warnings.length > 0) {
+                console.warn('Dish Validation Warnings:', validation.warnings);
+            }
+
+            importGrid(dish.data);
+            // setIsPlaying(false); // Can confuse user if they expect immediate interaction
+            onClose();
+        } catch (e) {
+            alert('Failed to parse dish data');
+            console.error(e);
+        }
     };
 
     const handleDeleteDish = async (e: React.MouseEvent, id: string) => {
@@ -48,9 +65,20 @@ export function DishLibraryModal({ isOpen, onClose }: DishLibraryModalProps) {
         reader.onload = (event) => {
             const content = event.target?.result as string;
             if (content) {
-                importGrid(content);
-                // setIsPlaying(false);
-                onClose();
+                try {
+                    const data = JSON.parse(content);
+                    const validation = DishValidator.validate(data);
+
+                    if (!validation.isValid) {
+                        alert(`Cannot import dish: \n${validation.errors.join('\n')}`);
+                        return;
+                    }
+
+                    importGrid(content);
+                    onClose();
+                } catch (e) {
+                    alert('Invalid JSON file');
+                }
             }
         };
         reader.readAsText(file);

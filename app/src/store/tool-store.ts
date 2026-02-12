@@ -6,6 +6,9 @@ import { create } from 'zustand';
 import { PamDNA, Cell } from '@/lib/vibe-core';
 import { getPamModule } from '@/pams/registry';
 import { useGridStore } from './grid-store';
+import { hexToPixel, pixelToHex, HexCoord, hexToId } from '@/core/grid/hex';
+
+interface Point { x: number; y: number; }
 
 // --- View State ---
 
@@ -14,6 +17,8 @@ export interface ViewState {
     showNebula: boolean;
     pan: { x: number; y: number };
     zoom: number;
+    // Selection View State
+    selectionRect?: { start: Point; end: Point };
     // future: showHeatmap, showGridLines, showDebugOverlay
 }
 
@@ -27,9 +32,11 @@ export type InteractionState =
     | { type: 'GENESIS_DRAGGING', cell: Cell } // Currently dragging
     | { type: 'GENESIS_HOLDING', cell: Cell, ignoreNextClick: boolean } // Clicked and holding (for 2-step move)
     | { type: 'GENESIS_GLUING_SOURCE' } // Selecting source
-    | { type: 'GENESIS_GLUING_SOURCE' } // Selecting source
     | { type: 'GENESIS_GLUING_TARGET', sourceId: string } // Selecting target
-    | { type: 'ERASER_IDLE' }; // Erasing cells
+    | { type: 'ERASER_IDLE' } // Erasing cells
+    | { type: 'SELECT_IDLE' }
+    | { type: 'SELECT_DRAGGING' }
+    | { type: 'PASTE_IDLE' };
 
 // --- Actions / Events ---
 
@@ -48,6 +55,14 @@ export interface ToolStoreState {
     view: ViewState;
     interaction: InteractionState;
 
+    // Selection State
+    selection: Set<string>; // Selected Cell IDs
+    setSelection: (ids: Set<string>) => void;
+    clearSelection: () => void;
+    startSelection: (pos: Point) => void;
+    updateSelection: (pos: Point) => void;
+    endSelection: () => void;
+
     // View Actions
     toggleSynapticVision: () => void;
     toggleNebula: () => void;
@@ -59,10 +74,10 @@ export interface ToolStoreState {
     setToolInspect: () => void;
     setToolGenesis: (dna: PamDNA) => void;
     setToolGenesisGlue: () => void;
-    setToolGenesis: (dna: PamDNA) => void;
-    setToolGenesisGlue: () => void;
     setToolGenesisTransplant: () => void;
     setToolEraser: () => void;
+    setToolSelect: () => void;
+    setToolPaste: () => void;
 
     // Main Event Handler (The "Reducer")
     handleGridEvent: (event: GridEvent) => void;
@@ -73,13 +88,14 @@ export interface ToolStoreState {
 
 export const useToolStore = create<ToolStoreState>((set, get) => ({
     view: {
-        showSynapticVision: false,
+        showSynapticVision: true, // Show signals by default!
         showNebula: true, // Default to on
         pan: { x: 0, y: 0 },
         zoom: 1,
     },
 
     interaction: { type: 'HAND_IDLE' },
+    selection: new Set(),
 
     // --- View Actions ---
 
@@ -112,6 +128,87 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
     setToolGenesisTransplant: () => set({ interaction: { type: 'GENESIS_TRANSPLANT_IDLE' } }),
 
     setToolEraser: () => set({ interaction: { type: 'ERASER_IDLE' } }),
+
+    setToolSelect: () => {
+        console.log('[ToolStore] setToolSelect called');
+        // Reset selection state when entering tool
+        set({
+            interaction: { type: 'SELECT_IDLE' },
+            view: { ...get().view, selectionRect: undefined }
+        });
+    },
+
+    setToolPaste: () => set({ interaction: { type: 'PASTE_IDLE' } }),
+
+    setSelection: (selection) => set({ selection }),
+    clearSelection: () => set({ selection: new Set(), view: { ...get().view, selectionRect: undefined } }),
+
+    startSelection: (pos) => set(state => ({
+        interaction: { type: 'SELECT_DRAGGING' },
+        view: { ...state.view, selectionRect: { start: pos, end: pos } }
+    })),
+
+    updateSelection: (pos) => set(state => {
+        if (!state.view.selectionRect) return {};
+        return {
+            view: { ...state.view, selectionRect: { ...state.view.selectionRect, end: pos } }
+        };
+    }),
+
+    endSelection: () => {
+        const state = get();
+        const selectionRect = state.view.selectionRect;
+        console.log('[ToolStore] endSelection', selectionRect);
+        if (!selectionRect) {
+            set({ interaction: { type: 'SELECT_IDLE' } });
+            return;
+        }
+
+        const { start, end } = selectionRect;
+        const minX = Math.min(start.x, end.x);
+        const maxX = Math.max(start.x, end.x);
+        const minY = Math.min(start.y, end.y);
+        const maxY = Math.max(start.y, end.y);
+
+        const allCells = useGridStore.getState().getAllCells();
+        const newSelection = new Set<string>();
+
+        console.log(`[ToolStore] Selection Bounds: x=${minX}-${maxX}, y=${minY}-${maxY}`);
+        console.log(`[ToolStore] Checking ${allCells.length} cells`);
+
+        const HEX_SIZE = 40;
+        const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE;
+        const HEX_HEIGHT = 2 * HEX_SIZE;
+        const halfW = HEX_WIDTH / 2;
+        const halfH = HEX_HEIGHT / 2;
+
+        console.log(`[ToolStore] Selection Rect: [${minX.toFixed(1)}, ${maxX.toFixed(1)}] x [${minY.toFixed(1)}, ${maxY.toFixed(1)}]`);
+
+        allCells.forEach(cell => {
+            const pos = hexToPixel(cell.coord);
+
+            // Calculate Cell Bounding Box
+            const cellMinX = pos.x - halfW;
+            const cellMaxX = pos.x + halfW;
+            const cellMinY = pos.y - halfH;
+            const cellMaxY = pos.y + halfH;
+
+            // Check Intersection: (RectA.Left < RectB.Right) && (RectA.Right > RectB.Left) ...
+            const overlaps = (minX < cellMaxX) && (maxX > cellMinX) && (minY < cellMaxY) && (maxY > cellMinY);
+
+            if (overlaps) {
+                newSelection.add(cell.id);
+            }
+        });
+
+        console.log(`[ToolStore] Selected ${newSelection.size} cells`);
+
+        set({
+            selection: newSelection,
+            view: { ...state.view, selectionRect: undefined },
+            interaction: { type: 'SELECT_IDLE' }
+        });
+    },
 
     clearInspection: () => {
         const current = get().interaction;
@@ -320,6 +417,38 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
                     gridStore.mergeCells(state.sourceId, event.cell.id);
                     // Reset to Source selection for next merge
                     set({ interaction: { type: 'GENESIS_GLUING_SOURCE' } });
+                }
+                break;
+            }
+
+            case 'SELECT_IDLE': {
+                if (event.type === 'CLICK') {
+                    // Toggle selection of clicked cell
+                    const currentSelection = new Set(get().selection);
+                    if (currentSelection.has(event.cell.id)) {
+                        currentSelection.delete(event.cell.id);
+                    } else {
+                        currentSelection.add(event.cell.id);
+                    }
+                    set({ selection: currentSelection });
+                }
+                if (event.type === 'BACKGROUND_CLICK') {
+                    set({ selection: new Set() });
+                }
+                break;
+            }
+
+            case 'SELECT_DRAGGING': {
+                // Handled by Viewport usually, but if we get here ensure we ignore stuff or handle completion?
+                break;
+            }
+
+            case 'PASTE_IDLE': {
+                if (event.type === 'CLICK' || event.type === 'BACKGROUND_CLICK') {
+                    console.log(`📋 Paste Tool: Pasting at ${event.type === 'CLICK' ? event.cell.coord.q + ',' + event.cell.coord.r : event.coord.q + ',' + event.coord.r}`);
+                    const targetCoord = event.type === 'CLICK' ? event.cell.coord : event.coord;
+                    gridStore.paste(targetCoord);
+                    set({ interaction: { type: 'HAND_IDLE' } }); // Revert to hand after paste
                 }
                 break;
             }

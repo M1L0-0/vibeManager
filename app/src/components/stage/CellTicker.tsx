@@ -94,26 +94,31 @@ export function CellTicker() {
 
                 // Call onTick for each cell that has it
                 cells.forEach((cell) => {
-                    const pamModule = PAM_REGISTRY[cell.dna.id];
-                    if (pamModule?.onTick) {
-                        pamModule.onTick(cell, deltaTime);
+                    try {
+                        const pamModule = PAM_REGISTRY[cell.dna.id];
+                        if (pamModule?.onTick) {
+                            pamModule.onTick(cell, deltaTime);
+                        }
+
+                        // Process pending signals (reception)
+                        if (cell.signals.length > 0 && pamModule?.onSignal) {
+                            cell.signals.forEach((signal) => {
+                                try {
+                                    // Module-specific signal handling (safe)
+                                    pamModule.onSignal(cell, signal);
+                                } catch (signalError) {
+                                    console.error(`Error processing signal for cell ${cell.id} (${cell.dna.id}):`, signalError);
+                                }
+                            });
+
+                            // Clear processed signals
+                            gridStore.updateCell(cell.id, {
+                                signals: [],
+                            }, { skipHistory: true });
+                        }
+                    } catch (cellError) {
+                        console.error(`Error processing tick for cell ${cell.id} (${cell.dna.id}):`, cellError);
                     }
-
-                    // Process pending signals (reception)
-                    if (cell.signals.length > 0 && pamModule?.onSignal) {
-                        // if (cell.signals.length > 1) console.log(`Traffic: Cell ${cell.id} processing ${cell.signals.length} signals`);
-
-                        cell.signals.forEach((signal) => {
-                            // Module-specific signal handling (safe)
-                            pamModule.onSignal(cell, signal);
-                        });
-
-                        // Clear processed signals
-                        gridStore.updateCell(cell.id, {
-                            signals: [],
-                        });
-                    }
-
                 });
 
                 if (state.tickCount % 60 === 0) {

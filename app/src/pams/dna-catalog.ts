@@ -42,3 +42,12 @@ export const NeuronDNA: PamDNA = {
     icon: 'Network', // Network/Circuit icon
     description: 'Integrates signals and performs logical operations (AND, OR, XOR)',
 };
+
+export const PixelDNA: PamDNA = {
+    id: 'pixel',
+    name: 'Pixel',
+    version: '1.0.0',
+    color: '#333333', // Dark / Off
+    icon: 'Monitor', // Monitor/Screen icon
+    description: 'Displays the color of the last received signal',
+};

@@ -93,7 +93,7 @@ export function StandardConfigSection({ cell, updateCell }: Props) {
                             <div className="flex justify-between text-xs text-gray-400 uppercase tracking-wide mb-2">
                                 <span>Signal Range</span>
                                 <span className="text-cyan-400 font-mono">
-                                    {(data.range ?? 1) >= 50 ? 'Infinite' : `${data.range ?? 1} hops`}
+                                    {(data.range ?? 100) >= 50 ? 'Infinite' : `${data.range ?? 100} hops`}
                                 </span>
                             </div>
                             <input
@@ -101,10 +101,10 @@ export function StandardConfigSection({ cell, updateCell }: Props) {
                                 min="1"
                                 max="51"
                                 step="1"
-                                value={(data.range ?? 1) >= 50 ? 51 : (data.range ?? 1)}
+                                value={(data.range ?? 100) >= 50 ? 51 : (data.range ?? 100)}
                                 onChange={(e) => {
                                     const val = parseInt(e.target.value);
-                                    updateData({ range: val >= 51 ? 1000 : val }); // 1000 = effectively infinite for this grid size
+                                    updateData({ range: val >= 51 ? 100 : val }); // 100 = effectively infinite/default
                                 }}
                                 className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                             />
