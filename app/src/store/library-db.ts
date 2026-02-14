@@ -7,6 +7,7 @@ interface DishRecord {
     timestamp: number;
     thumbnail: string; // Base64 data URL
     data: string; // JSON string of the grid state
+    folder?: string; // 'Demos' | 'User' | etc.
 }
 
 interface DishLibraryDB extends DBSchema {

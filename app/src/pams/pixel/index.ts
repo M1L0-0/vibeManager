@@ -7,9 +7,12 @@ import { PamModule, Cell, Signal } from '@/lib/vibe-core';
 import { useGridStore } from '@/store/grid-store';
 import { PixelDNA } from '@/pams/dna-catalog';
 import { CHANNELS, ChannelId } from '@/core/grid/channels';
+import { PixelConfig } from './Config';
+import { handleStandardWavePropagation } from '@/core/grid/propagation';
 
 export const PixelCell: PamModule = {
     dna: PixelDNA,
+    configComponent: PixelConfig,
 
     onSpawn: (cell: Cell) => {
         // Initialize with default color
@@ -58,42 +61,73 @@ export const PixelCell: PamModule = {
             signalColor = CHANNELS[signal.channelId as ChannelId].color;
         }
 
-        // 2. Store Base Color (if not already stored)
-        // We assume the current 'displayColor' is the "paint" unless we are already flashing
-        // To be safe, maybe we should have stored 'baseColor' on spawn?
-        // Let's rely on data.baseColor if it exists, or initialize it from current displayColor
-
+        // 2. Persistent vs Temporary Color
         const baseColor = data.baseColor || data.displayColor || '#333333';
+
+        // Default to TRUE (Canvas Mode) unless explicitly disabled
+        const persistence = (data.persistence !== false);
+
+        let newColor = baseColor;
+        let decayToColor = baseColor;
+
+        if (persistence) {
+            newColor = signalColor;
+            decayToColor = signalColor; // Stay this color
+        } else {
+            // Temporary Flash (Display Mode)
+            // Flash to signal color, but decay back to baseColor
+            newColor = baseColor; // Base doesn't change
+            // We want to SHOW signal color, so displayColor = signalColor
+            // But we don't update baseColor
+        }
+
+        const updateData: any = {
+            ...data,
+            displayColor: signalColor // Always flash to signal color initially
+        };
+
+        if (persistence) {
+            updateData.baseColor = signalColor; // Persist it
+        }
 
         store.updateCell(cell.id, {
             state: {
                 ...freshCell.state,
-                data: {
-                    ...data,
-                    baseColor: baseColor, // Persist base color
-                    displayColor: signalColor // Flash to signal color
-                },
-                activity: 1.0 // Pulse
+                data: updateData,
+                activity: 1.0
             }
         }, { skipHistory: true });
 
-        // 3. Decay and Restore Color
+        // 3. Decay Activity
         setTimeout(() => {
             const currentStore = useGridStore.getState();
-            const current = currentStore.cells.get(cell.id);
-            if (current) {
+            if (currentStore.cells.has(cell.id)) {
+
+                // If temporary, revert display color
+                const updates: any = { activity: 0 };
+
+                if (!persistence) {
+                    updates.data = {
+                        ...currentStore.cells.get(cell.id)!.state.data,
+                        displayColor: baseColor // Revert to original base
+                    };
+                }
+
                 currentStore.updateCell(cell.id, {
                     state: {
-                        ...current.state,
-                        data: {
-                            ...current.state.data,
-                            displayColor: baseColor // Restore original color
-                        },
-                        activity: 0
+                        ...currentStore.cells.get(cell.id)!.state, // Merge safely
+                        ...updates
                     }
                 }, { skipHistory: true });
             }
-        }, 400); // Slightly longer than wave transit to ensure visibility
+        }, 400);
+
+        // 4. Propagation (Optional)
+        if (data.conductive) {
+            handleStandardWavePropagation(cell, signal, {
+                color: signalColor
+            });
+        }
     },
 
     // Custom renderer hook?

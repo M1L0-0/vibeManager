@@ -59,6 +59,6 @@ export const StemCell: PamModule = {
             store.updateCell(cell.id, {
                 state: { activity: 0 }
             }, { skipHistory: true });
-        }, 300);
+        }, 500); // Increased from 300 to 500 for better visibility
     },
 };

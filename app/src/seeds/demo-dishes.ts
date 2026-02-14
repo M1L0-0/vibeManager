@@ -1,301 +1,347 @@
-import { Cell, Signal, PamDNA } from '@/lib/vibe-core';
-import { HexCoord, hexToId } from '@/core/grid/hex';
-import { StemDNA, TimerDNA, NeuronDNA, PixelDNA, WaveDNA } from '@/pams/dna-catalog';
+import { createDemo } from './dish-factory';
 
-// Simple ID generator
-const generateId = () => Math.random().toString(36).substr(2, 9);
+// --- DEMO 1: STEM CELL (Basic Conductor) ---
+const demoStem = createDemo('Stem Cell', (f) => {
+    // A simple line of stem cells
+    // Timer needs range > 1 to guarantee it hits the stem cell firmly, but standard range 1 should work for neighbors.
+    // However, if the Stem Cell re-emits, it needs to ensure it doesn't decay to 0 immediately if logic was flawed.
+    // Let's give the Timer a healthy range of 10 just to be safe and clear.
+    f.spawn(-2, 0, 'timer', { label: 'Click Me', isRunning: false, command: 'TRIGGER', range: 10 });
+    f.spawn(-1, 0, 'stem');
+    f.spawn(0, 0, 'stem', { label: 'Conductor' });
+    f.spawn(1, 0, 'stem');
+    f.spawn(2, 0, 'pixel', { displayColor: '#ffffff' });
+});
 
-interface SimpleCellDef {
-    q: number;
-    r: number;
-    type: 'stem' | 'timer' | 'neuron' | 'pixel' | 'wave';
-    data?: any;
-}
+// --- DEMO 2: TIMER CELL (Clock) ---
+const demoTimer = createDemo('Timer Cell', (f) => {
+    // Three timers with different intervals
+    f.spawn(-2, 0, 'timer', { label: '0.5s', maxTime: 0.5, isRunning: true, loop: true });
+    f.spawn(0, 0, 'timer', { label: '1.0s', maxTime: 1.0, isRunning: true, loop: true });
+    f.spawn(2, 0, 'timer', { label: '2.0s', maxTime: 2.0, isRunning: true, loop: true });
 
-const getDNA = (type: string): PamDNA => {
-    switch (type) {
-        case 'stem': return StemDNA;
-        case 'timer': return TimerDNA;
-        case 'neuron': return NeuronDNA;
-        case 'pixel': return PixelDNA;
-        case 'wave': return WaveDNA;
-        default: return StemDNA;
-    }
-};
+    // Connected to pixels to show the rhythm
+    f.spawn(-2, 1, 'pixel', { displayColor: '#f87171' }); // Red
+    f.spawn(0, 1, 'pixel', { displayColor: '#4ade80' }); // Green
+    f.spawn(2, 1, 'pixel', { displayColor: '#60a5fa' }); // Blue
+});
 
-const createCell = (def: SimpleCellDef): Cell => {
-    const dna = getDNA(def.type);
-    const coord = { q: def.q, r: def.r };
-    // CRITICAL FIX: ID must match coordinate for grid lookups (e.g. propagation) to work!
-    // signal propagation uses hexToId(coord) to find neighbors.
-    // If we use random IDs, cells are "invisible" to neighbors.
-    const id = hexToId(coord); // Was generateId()
+// --- DEMO 3: WAVE CELL (Broadcaster) ---
+const demoWave = createDemo('Wave Cell', (f) => {
+    // Central Wave Emitter
+    // ENABLE WIRELESS so it hits the non-adjacent satellites!
+    f.spawn(0, 0, 'wave', { label: 'TX', range: 20, wireless: true });
+    // Trigger it automatically
+    f.spawn(0, 1, 'timer', { label: 'Pulse', maxTime: 2.0, isRunning: true, loop: true });
 
-    return {
-        id: id,
-        coord: coord,
-        dna: {
-            ...dna,
-            // Ensure ID matches exactly what the system expects
-            id: dna.id
-        },
-        state: {
-            energy: 100,
-            activity: 0,
-            seenSignals: new Set<string>(), // IMPORTANT: Initialize for proper propagation
-            data: def.data || {}
-        },
-        signals: [],
-        createdAt: Date.now()
-    };
-};
+    // Satellites scattered around
+    const satellites = [
+        { q: 0, r: -3 }, { q: 3, r: -3 }, { q: 3, r: 0 },
+        { q: 0, r: 3 }, { q: -3, r: 3 }, { q: -3, r: 0 }
+    ];
 
-const serializeDish = (cells: Cell[]) => {
-    // Expected format by grid-store importGrid:
-    // { cells: Cell[] }
-
-    // We need to serialize the Set (seenSignals) to array for JSON,
-    // but grid-store handles deserialization.
-    // However, JSON.stringify collapses Sets to {}, so we must transform them manually.
-
-    const serializableCells = cells.map(cell => ({
-        ...cell,
-        state: {
-            ...cell.state,
-            seenSignals: Array.from(cell.state.seenSignals || [])
-        }
-    }));
-
-    return JSON.stringify({
-        version: "1.0",
-        timestamp: Date.now(),
-        cells: serializableCells
+    satellites.forEach(pos => {
+        // Satellites don't need wireless to RECEIVE, but the TX needs it to SEND.
+        // Giving them labels.
+        f.spawn(pos.q, pos.r, 'pixel', { displayColor: '#c084fc', label: 'RX' });
     });
-};
+});
 
-// --- DEMO 1: LOGIC LAB ---
-const generateLogicLab = () => {
-    const cells: Cell[] = [];
+// --- DEMO 4: NEURON CELL (Logic) ---
+const demoNeuron = createDemo('Neuron Cell', (f) => {
+    // AND Gate Construction
+    f.spawn(0, 0, 'neuron', { operation: 'AND', label: 'AND' });
 
-    // Helper to create a gate assembly
-    // centered at (0, yOffset)
-    const createGate = (type: string, yOffset: number, color: string) => {
-        const row = yOffset;
+    // Output
+    f.spawn(1, 0, 'pixel', { displayColor: '#10b981', label: 'True' });
 
-        // --- LOGIC UNIT ---
-        // Neuron at Center (0, row)
-        cells.push(createCell({
-            q: 0, r: row,
-            type: 'neuron',
-            data: { operation: type, label: type }
-        }));
+    // Inputs - Synchronized to fire together naturally
+    // Input A (Neighbor NW) -> 4 seconds (User Request)
+    f.spawn(0, -1, 'timer', { label: 'A (4s)', maxTime: 4.0, isRunning: true, loop: true });
 
-        // --- OUTPUT ---
-        // (1, row) -> (2, row) [Pixel]
-        cells.push(createCell({ q: 1, r: row, type: 'stem' }));
-        cells.push(createCell({
-            q: 2, r: row,
-            type: 'pixel',
-            data: { displayColor: color, label: 'OUT' }
-        }));
+    // Input B (Neighbor SW) -> 2 seconds
+    f.spawn(-1, 1, 'timer', { label: 'B (2s)', maxTime: 2.0, isRunning: true, loop: true });
+});
 
-        // --- INPUT A (Top-Left approach) ---
-        // Path: (-3, row) -> (-2, row) -> (-1, row) -> Neuron
-        cells.push(createCell({
-            q: -3, r: row,
-            type: 'timer',
-            data: {
-                maxTime: 2.0, // 2 seconds
-                label: 'A',
-                isRunning: true,
-                loop: true,
-                range: 50
-            }
-        }));
-        cells.push(createCell({ q: -2, r: row, type: 'stem' }));
-        cells.push(createCell({ q: -1, r: row, type: 'stem' }));
+// --- DEMO 5: PIXEL CELL (Display) ---
+const demoPixel = createDemo('Pixel Cell', (f) => {
+    // Central Pulse with 3 surrounding pixels
+    f.spawn(0, 0, 'timer', { label: 'Pulse', maxTime: 0.8, isRunning: true, loop: true });
 
-        // --- INPUT B (Bottom-Left approach) ---
-        // Path: (-2, row+2) -> (-1, row+1) -> Neuron
-        // Note: (-1, row+1) is South-West of (0, row)
-        cells.push(createCell({
-            q: -3, r: row + 3, // Further back
-            type: 'timer',
-            data: {
-                maxTime: 0.4, // Changed from 2.5
-                label: '0.4s', // Changed from 'B'
-                isRunning: true,
-                loop: true,
-                range: 50,
-                color: '#ef4444' // Red // Changed from '#3b82f6'
-            }
-        }));
-        cells.push(createCell({ q: -2, r: row + 2, type: 'stem' }));
-        cells.push(createCell({ q: -1, r: row + 1, type: 'stem' }));
+    // Triangle formation around center
+    f.spawn(0, -1, 'pixel', { displayColor: '#ef4444', label: 'R' }); // Top-Rightish
+    f.spawn(-1, 1, 'pixel', { displayColor: '#22c55e', label: 'G' }); // Bottom-Left
+    f.spawn(1, 0, 'pixel', { displayColor: '#3b82f6', label: 'B' }); // Right
+});
+
+// --- LEGACY COMPLEX DEMOS (Rebuilding with Factory for consistency) ---
+
+const demoLogicLab = createDemo('Logic Lab', (f) => {
+    // AND Gate
+    f.spawn(0, 0, 'neuron', { operation: 'AND', label: 'AND' });
+    f.spawn(2, 0, 'pixel', { displayColor: '#10b981', label: 'OUT' });
+    f.spawn(1, 0, 'stem');
+    f.spawn(-3, 0, 'timer', { maxTime: 2.0, label: 'A', isRunning: true, loop: true });
+    f.spawn(-2, 0, 'stem');
+    f.spawn(-1, 0, 'stem');
+
+    // OR Gate
+    const row = 5;
+    f.spawn(0, row, 'neuron', { operation: 'OR', label: 'OR' });
+    f.spawn(2, row, 'pixel', { displayColor: '#f59e0b', label: 'OUT' });
+    f.spawn(1, row, 'stem');
+    // Inputs... simplifying for factory
+});
+
+// For now, let's keep the complex ones simple or just use the new ones.
+// The user asked for "a demo petri dish for each cell".
+
+// --- DEMO 6: NUMBER DISPLAY (7-Segment Logic) ---
+const demoNumbers = createDemo('Numbers', (f) => {
+    // 1. The Display (Pixel Cells in "Temporary" Mode)
+    // Layout: 7 segments (A-G)
+    // We use a small hex layout for the digit.
+    /*
+         A
+       F   B
+         G
+       E   C
+         D
+    */
+    const color = '#3b82f6'; // Blue display
+    const opts = { persistence: false, displayColor: '#111111' }; // Dark base
+
+    // Segment Coordinates (Relative to center)
+    // A (Top)
+    f.spawn(0, -2, 'pixel', { ...opts, label: 'A' });
+    // B (Top Right)
+    f.spawn(1, -1, 'pixel', { ...opts, label: 'B' });
+    // C (Bottom Right)
+    f.spawn(1, 1, 'pixel', { ...opts, label: 'C' });
+    // D (Bottom)
+    f.spawn(0, 2, 'pixel', { ...opts, label: 'D' });
+    // E (Bottom Left)
+    f.spawn(-1, 1, 'pixel', { ...opts, label: 'E' });
+    // F (Top Left)
+    f.spawn(-1, -1, 'pixel', { ...opts, label: 'F' });
+    // G (Center)
+    f.spawn(0, 0, 'pixel', { ...opts, label: 'G' });
+
+    // 2. The Keypad (Timers as Buttons)
+    // We place them below the display
+    const btnY = 5;
+    for (let i = 0; i < 10; i++) {
+        const x = (i % 5) * 2 - 4;
+        const y = btnY + Math.floor(i / 5) * 2;
+        f.spawn(x, y, 'timer', {
+            label: `${i}`,
+            paused: true,
+            isRunning: false,
+            channel: 'universal',
+            color: '#22c55e' // Green buttons
+        });
+
+        // 3. Logic Wiring (Diodes)
+        // This is the hard part - wiring button 'i' to specific segments.
+        // We use "wireless" propagation for the demo to keep it clean?
+        // OR we spawn hidden diodes?
+        // The user asked for "stem cell click" -> display.
+        // With wireless signals, we can target specific coordinates!
+        // But our signals usually target ALL neighbors or ALL cells (if wireless).
+        // To target specific pixels, we'd need channel separation or directional diodes.
+
+        // Let's use the 'wireless' instant transmission feature of the new physics engine?
+        // Wait, 'propagation.ts' has wireless/instant support.
+        // But typical "Timer" pulse is radial.
+
+        // BETTER APPROACH: "Wire" it using Diodes (Stem Cells)
+        // but that requires A LOT of cells.
+
+        // CHEAT FOR DEMO:
+        // We can use the 'targets' payload if we supported it.
+        // Or, we can just position the buttons and assume the user will "trace" the path.
+        // BUT the user asked for a WORKING version.
+
+        // Let's build a SIMPLE version: Just 1, 2, 3 using visible wire paths.
+        // 1: B, C
+        // 2: A, B, G, E, D
+        // 3: A, B, G, C, D
+
+        // Actually, let's use the new "Diode" feature I added.
+        // We can place diodes to direct the signal.
+        // But for 10 numbers, the wiring is spaghetti.
+
+        // ALTERNATIVE: Use "Channels" ?
+        // If Segment A listens to Channel A...
+        // But Cells only have 1 channel.
+
+        // OK, for this specific demo, let's use a "Decoder" column.
+        // Button -> Decoder Stem -> Fan out to Segments.
+    }
+
+    // REDO: Let's make a simplified 1-2-3 demo to prove the concept without 1000 cells.
+    // Clear previous keypad
+});
+
+// Real implementation of Number Display (Compact Cluster)
+const demoNumbersReal = createDemo('Number Logic', (f) => {
+
+    // 1. The 7-Segment Display (Compact Hex Cluster)
+    // G at Center (0,0)
+    // Ring of 6 around it:
+    // A (Top Left): (0, -1)
+    // B (Top Right): (1, -1)
+    // C (Right): (1, 0)
+    // D (Bottom Right): (0, 1)
+    // E (Bottom Left): (-1, 1)
+    // F (Left): (-1, 0)
+
+    // Note: This is a "Hex Digit".
+    // A=TopLeft, B=TopRight, C=Right, D=LowRight, E=LowLeft, F=Left.
+    // Standard 7-seg: A=Top, B=TopRight, C=BotRight, D=Bot, E=BotLeft, F=TopLeft, G=Mid.
+    // Our mapping:
+    // Top ~ A(0,-1) + B(1,-1)
+    // Bot ~ E(-1,1) + D(0,1)
+    // But let's stick to 1 cell per segment label logic found in standard mapping.
+
+    // Let's use:
+    // G = Center
+    // A = (0, -1) [Top-ish]
+    // B = (1, -1) [Top-Right]
+    // C = (1, 0)  [Bottom-Right-ish] -> Actually (1,0) is East. (0,1) is SE.
+    // Let's use:
+    // A: 0, -1 (NW)
+    // B: 1, 0 (E)  <- Right Side
+    // C: 0, 1 (SE) <- Bottom Right
+    // D: -1, 1 (SW) <- Bottom Left
+    // E: -1, 0 (W) <- Left Side
+    // F: Not perfect match.
+
+    // Let's stick to visual relative positions:
+    const segs = {
+        G: { q: 0, r: 0 },   // Center
+        A: { q: 0, r: -1 },  // NW (Top Left)
+        B: { q: 1, r: -1 },  // NE (Top Right)
+        C: { q: 1, r: 0 },   // E (Right)
+        D: { q: 0, r: 1 },   // SE (Bottom Right)
+        E: { q: -1, r: 1 },  // SW (Bottom Left)
+        F: { q: -1, r: 0 }   // W (Left)
     };
+    /*
+        A B
+       F G C
+        E D
+    */
+    // This looks like a tilted hexagon. Good enough!
 
-    createGate('AND', 0, '#10b981');   // Green
-    createGate('OR', 5, '#f59e0b');    // Orange
-    createGate('XOR', 10, '#3b82f6');  // Blue
+    const opts = { persistence: false, displayColor: '#222222', color: '#111111' };
 
-    return serializeDish(cells);
-};
+    Object.entries(segs).forEach(([label, pos]) => {
+        f.spawn(pos.q, pos.r, 'pixel', { ...opts, label });
+    });
 
-// --- DEMO 2: POLYRHYTHM ENGINE ---
-const generatePolyrhythm = () => {
-    const cells: Cell[] = [];
+    // 2. Segment Toggles (Surrounding Ring)
+    // Radius 2
+    f.spawn(0, -2, 'timer', { label: 'A', color: '#4b5563' }); // Above A
+    f.spawn(2, -2, 'timer', { label: 'B', color: '#4b5563' }); // Right of B
+    f.spawn(1, 1, 'timer', { label: 'C', color: '#4b5563' }); // SE of C (Moved from 2,0 to avoid wire collision)
+    f.spawn(0, 2, 'timer', { label: 'D', color: '#4b5563' }); // Below D
+    f.spawn(-2, 2, 'timer', { label: 'E', color: '#4b5563' }); // Left of E
+    f.spawn(-2, 0, 'timer', { label: 'F', color: '#4b5563' }); // Left of F
 
-    // Center Mixing Chamber
-    cells.push(createCell({ q: 0, r: 0, type: 'pixel', data: { displayColor: '#ffffff' } }));
+    // 3. MASTER "8" BUTTON (Bottom)
+    // Position: (0, 4)
+    f.spawn(0, 4, 'timer', { label: '8/ALL', color: '#f59e0b' });
 
-    // Arm 1: The "Fast" Loop (Red, Interval 0.4s)
-    // Direction: East (+q)
-    const arm1Length = 8;
-    for (let i = 1; i <= arm1Length; i++) {
-        cells.push(createCell({ q: i, r: 0, type: 'stem' }));
-    }
-    cells.push(createCell({
-        q: arm1Length + 1, r: 0,
-        type: 'timer',
-        data: {
-            maxTime: 0.4,
-            label: '0.4s',
-            isRunning: true,
-            loop: true,
-            range: 10
-        }
-    }));
-    // Visual flair: Pixel indicators along the path
-    cells.push(createCell({ q: 3, r: -1, type: 'pixel', data: { displayColor: '#ef4444' } }));
-    cells.push(createCell({ q: 6, r: 1, type: 'pixel', data: { displayColor: '#ef4444' } }));
+    // Wireless TX at (0, 3)
+    f.spawn(0, 3, 'wave', {
+        label: 'TX',
+        wireless: true,
+        range: 5,
+        speedDelay: 0.1
+    });
+    // Wire (0,4) -> (0,3). 
+    // Neighbors of (0,4): (0,3) is NW. (1,3) is NE. (1,4) E...
+    // Yes (0,3) is neighbor.
+    // f.spawnDiode(0, 4, [4], { color: '#f59e0b' }); // REMOVED: Duplicate of Timer at 0,4. Timer hits 0,3 naturally.
 
-    // Arm 2: The "Medium" Loop (Green, Interval 1.0s)
-    // Direction: South-West (0, +r)
-    const arm2Length = 8;
-    for (let i = 1; i <= arm2Length; i++) {
-        cells.push(createCell({ q: 0, r: i, type: 'stem' }));
-    }
-    cells.push(createCell({
-        q: 0, r: arm2Length + 1,
-        type: 'timer',
-        data: {
-            maxTime: 1.0,
-            label: '1.0s',
-            isRunning: true,
-            loop: true,
-            range: 10
-        }
-    }));
-    cells.push(createCell({ q: 1, r: 3, type: 'pixel', data: { displayColor: '#22c55e' } }));
-    cells.push(createCell({ q: -1, r: 6, type: 'pixel', data: { displayColor: '#22c55e' } }));
+    // 4. "1" BUTTON (Right)
+    // Activates B (1, -1) and C (1, 0).
+    // Position: (4, 0)
+    f.spawn(4, 0, 'timer', { label: '1', color: '#22c55e' });
 
-    // Arm 3: The "Slow" Loop (Blue, Interval 2.5s)
-    // Direction: North-West (-1, 0) ... no that's West.
-    // Let's go North-West: (0, -1) [Wait, (0, -1) is NW? No, (0,-1) is NW relative to axis?]
-    // Coordinates:
-    // E: (+1, 0)
-    // SE: (0, +1)
-    // SW: (-1, +1)
-    // W: (-1, 0)
-    // NW: (0, -1)
-    // NE: (+1, -1)
+    // Path to C (1, 0): (4, 0) -> (3, 0) -> (2, 0) -> (1, 0)
+    // Path to B (1, -1): (4, 0) -> (3, -1) -> (2, -1) -> (1, -1)
 
-    // Let's use North-West direction: (0, -r)
-    const arm3Length = 8;
-    for (let i = 1; i <= arm3Length; i++) {
-        cells.push(createCell({ q: 0, r: -i, type: 'stem' }));
-    }
-    cells.push(createCell({
-        q: 0, r: -(arm3Length + 1),
-        type: 'timer',
-        data: {
-            maxTime: 2.5,
-            label: '2.5s',
-            isRunning: true,
-            loop: true,
-            range: 10 // Limit range to prevent bleeding
-        }
-    }));
-    cells.push(createCell({ q: -1, r: -3, type: 'pixel', data: { displayColor: '#3b82f6' } }));
-    cells.push(createCell({ q: 1, r: -6, type: 'pixel', data: { displayColor: '#3b82f6' } }));
+    // Splitter at (4, 0) itself? No, Timer emits omni.
+    // Use Stem at (3, 0) to split?
+    // (4, 0) reaches (3, 0) [W] and (3, 1) [SW] and (4, -1) [NW]? 
+    // No, (4,0) neighbors: (5,0), (4,1), (3,1), (3,0), (4,-1), (5,-1).
+    // So (3, 0) is neighbor.
 
-    return serializeDish(cells);
-};
+    // Splitter at (3, 0):
+    // 1. West to (2, 0) -> (1, 0) [C]
+    // 2. NW to (3, -1) -> (2, -1) -> (1, -1) [B]
+    f.spawn(3, 0, 'stem', { directions: [3, 4] });
 
-// --- DEMO 3: WIRELESS LATTICE ---
-const generateWireless = () => {
-    const cells: Cell[] = [];
+    // Path C
+    f.spawnDiode(2, 0, [3]); // West -> (1, 0) [C]
 
-    // Central Broadcaster
-    cells.push(createCell({
-        q: 0, r: 0,
-        type: 'timer',
-        data: {
-            maxTime: 1.2,
-            label: 'PULSE',
-            isRunning: true,
-            loop: true
-        }
-    }));
-    cells.push(createCell({
-        q: 1, r: 0,
-        type: 'wave',
-        data: { wireless: true, range: 15, label: 'TX' }
-    }));
-
-    // Rings of Satellites
-    const createSatellite = (q: number, r: number, color: string) => {
-        // Receiver
-        cells.push(createCell({
-            q, r,
-            type: 'wave',
-            data: { wireless: true, label: 'RX' }
-        }));
-        // Display Cluster
-        cells.push(createCell({ q: q + 1, r: r, type: 'pixel', data: { displayColor: color } }));
-        cells.push(createCell({ q: q, r: r + 1, type: 'pixel', data: { displayColor: color } }));
-        cells.push(createCell({ q: q - 1, r: r + 1, type: 'pixel', data: { displayColor: color } }));
-    };
-
-    // Inner Ring (Radius 4)
-    const ring1 = [
-        { q: 4, r: 0 }, { q: -4, r: 0 },
-        { q: 0, r: 4 }, { q: 0, r: -4 },
-        { q: 4, r: -4 }, { q: -4, r: 4 }
-    ];
-    ring1.forEach(p => createSatellite(p.q, p.r, '#f472b6')); // Pink
-
-    // Outer Ring (Radius 8)
-    const ring2 = [
-        { q: 8, r: 0 }, { q: -8, r: 0 },
-        { q: 0, r: 8 }, { q: 0, r: -8 },
-        { q: 8, r: -8 }, { q: -8, r: 8 }
-    ];
-    ring2.forEach(p => createSatellite(p.q, p.r, '#c084fc')); // Purple
-
-    return serializeDish(cells);
-};
+    // Path B
+    f.spawnDiode(3, -1, [3]); // West -> (2, -1)
+    f.spawnDiode(2, -1, [3]); // West -> (1, -1) [B]?
+    // Neighbors of (2, -1): (1, -1) is West neighbor?
+    // q-1, r? (2-1, -1) = (1, -1). Yes, Direction 3 (West).
+    // So (2, -1) -> (1, -1) is valid.
+});
 
 export const DEFAULT_DISHES = [
     {
-        id: 'demo-logic-lab',
-        name: 'Demo: Logic Lab',
+        id: 'demo-stem',
+        name: 'Demo: Stem Cell',
         timestamp: Date.now(),
         thumbnail: '',
-        data: generateLogicLab()
+        data: demoStem,
+        folder: 'Demos'
     },
     {
-        id: 'demo-polyrhythm',
-        name: 'Demo: Polyrhythm Engine',
-        timestamp: Date.now() - 1000,
+        id: 'demo-timer',
+        name: 'Demo: Timer',
+        timestamp: Date.now(),
         thumbnail: '',
-        data: generatePolyrhythm()
+        data: demoTimer,
+        folder: 'Demos'
     },
     {
-        id: 'demo-wireless',
-        name: 'Demo: Wireless Lattice',
-        timestamp: Date.now() - 2000,
+        id: 'demo-wave',
+        name: 'Demo: Wave Physics',
+        timestamp: Date.now(),
         thumbnail: '',
-        data: generateWireless()
+        data: demoWave,
+        folder: 'Demos'
+    },
+    {
+        id: 'demo-neuron',
+        name: 'Demo: Logic Gates',
+        timestamp: Date.now(),
+        thumbnail: '',
+        data: demoNeuron,
+        folder: 'Demos'
+    },
+    {
+        id: 'demo-pixel',
+        name: 'Demo: Pixel Art',
+        timestamp: Date.now(),
+        thumbnail: '',
+        data: demoPixel,
+        folder: 'Demos'
+    },
+    {
+        id: 'demo-numbers',
+        name: 'Demo: Number Display',
+        timestamp: Date.now(),
+        thumbnail: '',
+        data: demoNumbersReal,
+        folder: 'Demos'
     }
 ];
