@@ -26,7 +26,7 @@ export function GlassPanel({ children, className, ...props }: GlassProps) {
 
 interface GlassButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     isActive?: boolean;
-    activeVariant?: 'purple' | 'blue' | 'green' | 'cyan';
+    activeVariant?: 'purple' | 'blue' | 'green' | 'cyan' | 'red';
 }
 
 export function GlassButton({ children, className, isActive, activeVariant = 'purple', ...props }: GlassButtonProps) {
@@ -35,6 +35,7 @@ export function GlassButton({ children, className, isActive, activeVariant = 'pu
         blue: "bg-blue-600 text-white shadow-lg shadow-blue-500/50 hover:bg-blue-500",
         green: "bg-green-600 text-white shadow-lg shadow-green-500/50 hover:bg-green-500",
         cyan: "bg-cyan-600 text-white shadow-lg shadow-cyan-500/50 hover:bg-cyan-500",
+        red: "bg-red-600 text-white shadow-lg shadow-red-500/50 hover:bg-red-500",
     };
 
     return (

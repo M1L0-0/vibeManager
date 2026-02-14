@@ -2,6 +2,10 @@
  * PAM Registry - Central registry for all cell types
  * Add new cell types here and they'll automatically appear in the Genesis Tool
  */
+/**
+ * PAM Registry - Central registry for all cell types
+ * Add new cell types here and they'll automatically appear in the Genesis Tool
+ */
 
 import { PamModule } from '@/lib/vibe-core';
 import { StemCell } from '@/pams/stem';

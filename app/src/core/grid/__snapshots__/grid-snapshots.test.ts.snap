@@ -1,0 +1,174 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Grid Snapshots Stem Cell Generation: should emit signal every 2 seconds: After 1s (No Signal) 1`] = `
+{
+  "cells": [
+    {
+      "coord": {
+        "q": 0,
+        "r": 0,
+      },
+      "id": "stem-1",
+      "signals": [],
+      "state": {
+        "activity": 0,
+        "data": {
+          "interval": 2000,
+        },
+        "energy": 100,
+        "lastFired": undefined,
+      },
+      "type": "stem",
+    },
+  ],
+  "particles": [],
+}
+`;
+
+exports[`Grid Snapshots Stem Cell Generation: should emit signal every 2 seconds: After 2.1s (Signal Emitted) 1`] = `
+{
+  "cells": [
+    {
+      "coord": {
+        "q": 0,
+        "r": 0,
+      },
+      "id": "stem-1",
+      "signals": [],
+      "state": {
+        "activity": 0,
+        "data": {
+          "interval": 2000,
+        },
+        "energy": 100,
+        "lastFired": undefined,
+      },
+      "type": "stem",
+    },
+  ],
+  "particles": [],
+}
+`;
+
+exports[`Grid Snapshots Stem Cell Generation: should emit signal every 2 seconds: Initial State 1`] = `
+{
+  "cells": [
+    {
+      "coord": {
+        "q": 0,
+        "r": 0,
+      },
+      "id": "stem-1",
+      "signals": [],
+      "state": {
+        "activity": 0,
+        "data": {
+          "interval": 2000,
+        },
+        "energy": 100,
+        "lastFired": undefined,
+      },
+      "type": "stem",
+    },
+  ],
+  "particles": [],
+}
+`;
+
+exports[`Grid Snapshots Wave Propagation: should transmit signal to neighbor: Signal emitted from Stem 1`] = `
+{
+  "cells": [
+    {
+      "coord": {
+        "q": 0,
+        "r": 0,
+      },
+      "id": "stem-1",
+      "signals": [],
+      "state": {
+        "activity": 0,
+        "data": {
+          "interval": 1000,
+        },
+        "energy": 100,
+        "lastFired": undefined,
+      },
+      "type": "stem",
+    },
+    {
+      "coord": {
+        "q": 1,
+        "r": 0,
+      },
+      "id": "wave-1",
+      "signals": [],
+      "state": {
+        "activity": 0,
+        "data": {
+          "directions": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+          ],
+        },
+        "energy": 100,
+        "lastFired": undefined,
+      },
+      "type": "wave",
+    },
+  ],
+  "particles": [],
+}
+`;
+
+exports[`Grid Snapshots Wave Propagation: should transmit signal to neighbor: Signal reaches Wave 1`] = `
+{
+  "cells": [
+    {
+      "coord": {
+        "q": 0,
+        "r": 0,
+      },
+      "id": "stem-1",
+      "signals": [],
+      "state": {
+        "activity": 0,
+        "data": {
+          "interval": 1000,
+        },
+        "energy": 100,
+        "lastFired": undefined,
+      },
+      "type": "stem",
+    },
+    {
+      "coord": {
+        "q": 1,
+        "r": 0,
+      },
+      "id": "wave-1",
+      "signals": [],
+      "state": {
+        "activity": 0,
+        "data": {
+          "directions": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+          ],
+        },
+        "energy": 100,
+        "lastFired": undefined,
+      },
+      "type": "wave",
+    },
+  ],
+  "particles": [],
+}
+`;

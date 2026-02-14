@@ -110,6 +110,7 @@ export const HexGrid = memo(function HexGrid() {
                                 onMouseUp={handleCellMouseUp}
                                 connectedSides={connectedSides}
                                 isSelected={showSelection && selection.has(cell.id)}
+                                showDebugOverlay={view.showDebugOverlay}
                             />
                         );
                     })}

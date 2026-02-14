@@ -188,7 +188,7 @@ export function createImpulse(
     // Physics Resolution: Options > Data > Default
     const delay = data?.speedDelay || 0.1;
     const speed = options.speed || (1 / Math.max(0.01, delay));
-    const range = options.range ?? (data?.range !== undefined ? data.range : 100); // Default 100 (was 1, which killed standard waves)
+    const range = options.range ?? (data?.range !== undefined ? data.range : 1); // Default 1 (was 100) per user request
     const channelId = data?.channel || 'universal';
     const directions = data?.directions || [0, 1, 2, 3, 4, 5];
     const command = options.command as any || data?.command;

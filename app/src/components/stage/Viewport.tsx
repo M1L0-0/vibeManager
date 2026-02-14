@@ -9,6 +9,7 @@ import { HexGrid } from './HexGrid';
 import { SignalOverlay } from './SignalOverlay';
 import { NebulaBackground } from './NebulaBackground';
 import { SelectionOverlay } from './SelectionOverlay';
+import { DebugPanel } from '@/components/ui/DebugPanel';
 import { useToolStore } from '@/store/tool-store';
 import { pixelToHex } from '@/core/grid/hex';
 
@@ -273,6 +274,8 @@ export function Viewport() {
                     <span>ZOOM: {zoom.toFixed(2)}x</span>
                 </div>
             </div>
+
+            <DebugPanel />
 
             <style jsx global>{`
                 @keyframes float-fast-1 {

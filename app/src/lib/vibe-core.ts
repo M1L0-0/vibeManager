@@ -16,7 +16,7 @@ export interface Signal {
     type: string;
     channelId?: string; // Chemical Channel ID
     strength: number; // 0-1, decays over distance
-    range?: number; // Time To Live (hops remaining)
+    range?: number; // Time To Live (hops remaining). Default 1 for local interactions.
     speed?: number; // Speed of propagation (units per second)
     command?: SignalCommand; // Specific instruction
     payload?: any;

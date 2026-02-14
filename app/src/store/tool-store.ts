@@ -15,11 +15,12 @@ interface Point { x: number; y: number; }
 export interface ViewState {
     showSynapticVision: boolean;
     showNebula: boolean;
+    showDebugOverlay: boolean;
     pan: { x: number; y: number };
     zoom: number;
     // Selection View State
     selectionRect?: { start: Point; end: Point };
-    // future: showHeatmap, showGridLines, showDebugOverlay
+    // future: showHeatmap, showGridLines
 }
 
 // --- Interaction (FSM) State ---
@@ -54,6 +55,7 @@ export interface ToolStoreState {
     // Slices
     view: ViewState;
     interaction: InteractionState;
+    debugSelectedId: string | undefined; // Last clicked cell for debug panel
 
     // Selection State
     selection: Set<string>; // Selected Cell IDs
@@ -66,6 +68,7 @@ export interface ToolStoreState {
     // View Actions
     toggleSynapticVision: () => void;
     toggleNebula: () => void;
+    toggleDebugOverlay: () => void;
     setPan: (pan: { x: number; y: number }) => void;
     setZoom: (zoom: number) => void;
 
@@ -90,11 +93,13 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
     view: {
         showSynapticVision: true, // Show signals by default!
         showNebula: true, // Default to on
+        showDebugOverlay: false, // Default to off
         pan: { x: 0, y: 0 },
         zoom: 1,
     },
 
     interaction: { type: 'HAND_IDLE' },
+    debugSelectedId: undefined,
     selection: new Set(),
 
     // --- View Actions ---
@@ -105,6 +110,10 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
 
     toggleNebula: () => set(state => ({
         view: { ...state.view, showNebula: !state.view.showNebula }
+    })),
+
+    toggleDebugOverlay: () => set(state => ({
+        view: { ...state.view, showDebugOverlay: !state.view.showDebugOverlay }
     })),
 
     setPan: (pan) => set(state => ({
@@ -223,6 +232,11 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
         const state = get().interaction;
         const gridStore = useGridStore.getState();
         // Note: Accessing gridStore here is safe because actions are invoked at runtime
+
+        // --- GLOBAL DEBUG HOOK ---
+        if (event.type === 'CLICK' || event.type === 'RIGHT_CLICK') {
+            set({ debugSelectedId: event.cell.id });
+        }
 
         switch (state.type) {
             case 'HAND_IDLE': {

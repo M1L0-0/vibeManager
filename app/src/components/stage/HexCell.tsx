@@ -19,6 +19,7 @@ interface HexCellProps {
     onMouseUp?: (cell: Cell) => void;
     connectedSides?: boolean[]; // Array of 6 booleans, true if connected to group neighbor
     isSelected?: boolean;
+    showDebugOverlay?: boolean;
 }
 
 // Memoized HexCell to prevent unnecessary re-renders of the entire grid
@@ -29,7 +30,8 @@ export const HexCell = memo(function HexCell({
     onMouseDown,
     onMouseUp,
     connectedSides = [false, false, false, false, false, false],
-    isSelected = false
+    isSelected = false,
+    showDebugOverlay = false
 }: HexCellProps) {
     const position = hexToPixel(cell.coord);
     // Removed legacy local activity decay effect. Activity is now driven by store updates.
@@ -184,6 +186,31 @@ export const HexCell = memo(function HexCell({
                 );
             })()}
 
+            {/* Debug Overlay */}
+            {showDebugOverlay && (
+                <g style={{ pointerEvents: 'none' }}>
+                    <text
+                        y={-12}
+                        textAnchor="middle"
+                        fill="#00ff00"
+                        fontSize={8}
+                        fontFamily="monospace"
+                        fontWeight="bold"
+                    >
+                        {cell.coord.q},{cell.coord.r}
+                    </text>
+                    <text
+                        y={15}
+                        textAnchor="middle"
+                        fill="rgba(255,255,255,0.7)"
+                        fontSize={6}
+                        fontFamily="monospace"
+                    >
+                        {cell.id.slice(0, 4)}
+                    </text>
+                </g>
+            )}
+
             {/* Group Indicator (Link Icon) - Removed as per user request for clean look, walls removal is enough */}
 
 
@@ -199,6 +226,7 @@ export const HexCell = memo(function HexCell({
     if (prev.cell.state.activity !== next.cell.state.activity) return false;
     if (prev.cell.state.energy !== next.cell.state.energy) return false;
     if (prev.isSelected !== next.isSelected) return false; // Check selection
+    if (prev.showDebugOverlay !== next.showDebugOverlay) return false;
 
     // Check custom render dependencies form PAM
     const pam = getPamModule(prev.cell.dna.id);

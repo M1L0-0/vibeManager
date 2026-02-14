@@ -7,7 +7,8 @@
 import { useToolStore } from '@/store/tool-store';
 import { getAllCellTypes } from '@/pams/registry';
 import { GlassButton, GlassPanel } from './Glass';
-import { Hand, Search, Dna, Eye, Sparkles, Eraser, BoxSelect } from 'lucide-react';
+import { Hand, Search, Dna, Eye, Sparkles, Eraser, BoxSelect, Bug } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export function ToolSelector() {
     const interaction = useToolStore((state) => state.interaction);
@@ -115,6 +116,21 @@ export function ToolSelector() {
                 <div className="absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border border-gray-700">
                     <div className="font-semibold">Nebula</div>
                     <div className="text-gray-400 text-xs">Toggle background FX</div>
+                </div>
+            </GlassButton>
+
+            {/* Debug Toggle */}
+            <GlassButton
+                onClick={() => useToolStore.getState().toggleDebugOverlay()}
+                isActive={view.showDebugOverlay}
+                activeVariant="red"
+                className="group relative w-14 h-14"
+                title="Debug Overlay"
+            >
+                <Bug size={24} />
+                <div className="absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border border-gray-700">
+                    <div className="font-semibold">Debug Kernel</div>
+                    <div className="text-gray-400 text-xs">Show Grid Coordinates</div>
                 </div>
             </GlassButton>
         </GlassPanel>
