@@ -3,16 +3,15 @@
  */
 
 import { PamModule, Cell, Signal } from '@/lib/vibe-core';
-import { useGridStore } from '@/store/grid-store';
-import { getNeighbors, hexToId } from '@/core/grid/hex';
+// Removed: import { useGridStore } from '@/store/grid-store';
 import { handleStandardWavePropagation, createImpulse } from '@/core/grid/propagation';
 import { WaveDNA } from '@/pams/dna-catalog';
 import { WaveConfig } from './Config';
 
 // Standalone handler for triggering a new wave
-const onWaveClick = (cellArgument: Cell) => {
+const onWaveClick = (cellArgument: Cell, gridStore: any) => {
     // FEAT: Fetch fresh state to bypass React stale closures (due to heavy memoization)
-    const cell = useGridStore.getState().cells.get(cellArgument.id) || cellArgument;
+    const cell = gridStore.getState().cells.get(cellArgument.id) || cellArgument;
 
     // Safety Cooldown to prevent infinite signal loops (Reflections/Echoes)
     const lastFired = cell.state.data?.lastFired || 0;
@@ -30,7 +29,7 @@ const onWaveClick = (cellArgument: Cell) => {
         wireless: cell.state.data?.wireless,
         instant: cell.state.data?.instant
         // Color is optional, helper will fallback or we can defaults
-    });
+    }, gridStore);
 };
 
 export const WaveCell: PamModule = {
@@ -55,36 +54,20 @@ export const WaveCell: PamModule = {
 
     onClick: onWaveClick,
 
-    onSignal: (cell: Cell, signal: Signal) => {
+    onSignal: (cell: Cell, signal: Signal, gridStore: any) => {
         // 1. Handle Wave Propagation (Pass-through)
         if (signal.type === 'wave') {
-            // FIX: Wave Cell acts as a Repeater / Amplifier
-            // 1. Refresh Range (Boost signal back to full strength of THIS cell)
-            // 2. Reset Directions (Broadcast in cell's configured directions, ignoring incoming constraints)
-            const repeaterSignal = {
-                ...signal,
-                range: cell.state.data?.range || signal.range, // Use cell range if set
-                payload: {
-                    ...signal.payload,
-                    allowedDirections: cell.state.data?.directions || [0, 1, 2, 3, 4, 5] // Reset to Omni/Configured
-                }
-            };
-
-            const propagated = handleStandardWavePropagation(cell, repeaterSignal, {
+            const propagated = handleStandardWavePropagation(cell, signal, {
                 wireless: cell.state.data?.wireless,
                 instant: cell.state.data?.instant,
                 allowedDirections: cell.state.data?.directions || [0, 1, 2, 3, 4, 5] // Explicit override for propagation check
-            });
+            }, gridStore);
             if (propagated) {
                 // console.log(`🌊 Wave Cell ${cell.id}: Propagated wave ${signal.waveId}`);
             }
             return;
         }
 
-        // console.log(`📡 Wave Cell ${cell.id} received signal: type=${signal.type}, command=${signal.command}`);
-
-        // 2. Handle External Triggers (e.g. from Timer, Button) -> Start NEW Wave
-        // If we receive a TRIGGER command (or timer-pulse), and we are NOT just passing a wave...
         // 2. Handle External Triggers (e.g. from Timer, Button) -> Start NEW Wave
         // If we receive a TRIGGER command (or timer-pulse), and we are NOT just passing a wave...
         // FIXED: Re-enabled with strict checks
@@ -92,9 +75,8 @@ export const WaveCell: PamModule = {
             // Prevent self-triggering via own wave (should be caught by type=wave check above, but for safety)
             if (signal.id && cell.state.seenSignals?.has(signal.id)) return;
 
-            // console.log(`🌊 Wave Cell ${cell.id}: Triggered by external signal (${signal.type})`);
             // Trigger manual activation (New Wave)
-            onWaveClick(cell);
+            onWaveClick(cell, gridStore);
         }
     },
 };

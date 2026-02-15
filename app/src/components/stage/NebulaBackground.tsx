@@ -6,10 +6,11 @@ interface NebulaBackgroundProps {
     zoom: number;
     PATTERN_W: number;
     PATTERN_H: number;
+    patternId: string;
     HEX_SIZE: number;
 }
 
-export const NebulaBackground = memo(function NebulaBackground({ pan, zoom, PATTERN_W, PATTERN_H, HEX_SIZE }: NebulaBackgroundProps) {
+export const NebulaBackground = memo(function NebulaBackground({ pan, zoom, PATTERN_W, PATTERN_H, HEX_SIZE, patternId }: NebulaBackgroundProps) {
     return (
         <>
             {/* 1. Magenta Zone (Active - Top Left) */}
@@ -159,7 +160,7 @@ export const NebulaBackground = memo(function NebulaBackground({ pan, zoom, PATT
             >
                 <defs>
                     <pattern
-                        id="hex-grid-pattern"
+                        id={patternId}
                         x={pan.x}
                         y={pan.y}
                         width={PATTERN_W * zoom}
@@ -190,7 +191,7 @@ export const NebulaBackground = memo(function NebulaBackground({ pan, zoom, PATT
                         </g>
                     </pattern>
                 </defs>
-                <rect width="100%" height="100%" fill="url(#hex-grid-pattern)" />
+                <rect width="100%" height="100%" fill={`url(#${patternId})`} />
             </svg>
         </>
     );

@@ -1,8 +1,6 @@
-/**
- * Simulation Store - Controls time and metadata
- */
-
-import { create } from 'zustand';
+import { createStore } from 'zustand/vanilla';
+import { useStore } from 'zustand';
+import { createContext, useContext } from 'react';
 
 interface SimulationState {
     isPlaying: boolean;
@@ -18,7 +16,9 @@ interface SimulationState {
     toggleParticles: () => void;
 }
 
-export const useSimulationStore = create<SimulationState>((set) => ({
+export type SimulationStore = ReturnType<typeof createSimStore>;
+
+export const createSimStore = () => createStore<SimulationState>((set) => ({
     isPlaying: true,
     simulationSpeed: 1.0,
     tickCount: 0,
@@ -30,3 +30,17 @@ export const useSimulationStore = create<SimulationState>((set) => ({
     incrementTick: () => set((state) => ({ tickCount: state.tickCount + 1 })),
     toggleParticles: () => set((state) => ({ showParticles: !state.showParticles })),
 }));
+
+export const SimulationStoreContext = createContext<SimulationStore | null>(null);
+
+export function useSimulationStore<T>(selector: (state: SimulationState) => T): T {
+    const store = useContext(SimulationStoreContext);
+    if (!store) throw new Error('Missing SimulationStoreContext.Provider in the tree');
+    return useStore(store, selector);
+}
+
+export function useSimulationStoreApi() {
+    const store = useContext(SimulationStoreContext);
+    if (!store) throw new Error('Missing SimulationStoreContext.Provider in the tree');
+    return store;
+}

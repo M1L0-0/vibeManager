@@ -3,11 +3,10 @@
  */
 
 import { PamModule, Cell, Signal } from '@/lib/vibe-core';
-import { useGridStore } from '@/store/grid-store';
-import { getNeighbors, hexToId } from '@/core/grid/hex';
-import { TimerConfig } from './Config';
+// Removed: import { useGridStore } from '@/store/grid-store';
 import { handleStandardWavePropagation, createImpulse } from '@/core/grid/propagation';
 import { TimerDNA } from '@/pams/dna-catalog';
+import { TimerConfig } from './Config';
 
 interface TimerData {
     timeRemaining: number; // in seconds
@@ -38,15 +37,12 @@ export const TimerCell: PamModule = {
         } as TimerData;
     },
 
-    onClick: (cell: Cell) => {
+    onClick: (cell: Cell, gridStore: any) => {
         const data = cell.state.data as TimerData;
 
         if (!data || data.paused) return;
 
-        // Auto-start logic: If not running and has auto-restart/loop, maybe start?
-        // Actually, onTick usually assumes running?
-        // Current implementation seems to always tick if timeRemaining > 0.
-
+        // Auto-start logic
         let { timeRemaining, maxTime } = data;
         if (data.timeRemaining <= 0) {
             data.timeRemaining = data.maxTime;
@@ -61,7 +57,7 @@ export const TimerCell: PamModule = {
         console.log(`⏱️ Timer Cell ${cell.id}: ${data.isRunning ? 'Started/Resumed' : 'Paused'}`);
 
         // Update cell with new data
-        useGridStore.getState().updateCell(cell.id, {
+        gridStore.getState().updateCell(cell.id, {
             state: {
                 ...cell.state,
                 activity: data.isRunning ? cell.state.activity : 0, // Reset activity if paused
@@ -70,7 +66,7 @@ export const TimerCell: PamModule = {
         }, { skipHistory: true });
     },
 
-    onTick: (cell: Cell, deltaTime: number) => {
+    onTick: (cell: Cell, deltaTime: number, gridStore: any) => {
         const data = cell.state.data as TimerData;
 
         if (!data || !data.isRunning) return;
@@ -84,7 +80,7 @@ export const TimerCell: PamModule = {
         data.timeRemaining = Math.max(0, data.timeRemaining - deltaTime);
 
         // Update cell state
-        useGridStore.getState().updateCell(cell.id, {
+        gridStore.getState().updateCell(cell.id, {
             state: {
                 ...cell.state,
                 data,
@@ -93,8 +89,6 @@ export const TimerCell: PamModule = {
 
         // Timer completed!
         if (data.timeRemaining <= 0 && data.isRunning) {
-            // console.log(`⏱️ Timer Data:`, data); 
-            // Send pulse (Impulse) - ONE TIME
             // Derive color if missing (Robust Demo Fix)
             let signalColor = (data as any).color;
             if (!signalColor) {
@@ -109,7 +103,7 @@ export const TimerCell: PamModule = {
                 speed: 5.0,
                 color: signalColor,
                 command: 'TRIGGER'
-            });
+            }, gridStore);
 
             // Determine separate state for loop vs stop
             const shouldLoop = data.loop || data.autoRestart;
@@ -122,7 +116,7 @@ export const TimerCell: PamModule = {
                     isRunning: true
                 };
 
-                useGridStore.getState().updateCell(cell.id, {
+                gridStore.getState().updateCell(cell.id, {
                     state: {
                         ...cell.state,
                         data: nextData
@@ -133,7 +127,7 @@ export const TimerCell: PamModule = {
                 // Stop running
                 const nextData = { ...data, isRunning: false, timeRemaining: 0 };
 
-                useGridStore.getState().updateCell(cell.id, {
+                gridStore.getState().updateCell(cell.id, {
                     state: {
                         ...cell.state,
                         data: nextData
@@ -143,15 +137,13 @@ export const TimerCell: PamModule = {
         }
     },
 
-    onSignal: (cell: Cell, signal: Signal) => {
-
-
+    onSignal: (cell: Cell, signal: Signal, gridStore: any) => {
         let commandHandled = false;
 
         // --- Command Handling ---
         if (signal.command === 'RESET') {
             const maxTime = cell.state.data?.maxTime || 3;
-            useGridStore.getState().updateCell(cell.id, {
+            gridStore.getState().updateCell(cell.id, {
                 state: {
                     ...cell.state,
                     data: {
@@ -166,7 +158,7 @@ export const TimerCell: PamModule = {
             const data = cell.state.data as TimerData;
             if (data) {
                 data.isRunning = !data.isRunning;
-                useGridStore.getState().updateCell(cell.id, {
+                gridStore.getState().updateCell(cell.id, {
                     state: {
                         ...cell.state,
                         data: {
@@ -181,21 +173,6 @@ export const TimerCell: PamModule = {
 
         // --- Standard Wave Propagation ---
         if (signal.type === 'wave') {
-            // Helper handles propagation. 
-            // Note: We already updated seenSignals above, but the helper does it again. 
-            // This is slightly redundant but harmless as Sets dedup.
-            // Actually, helper returns FALSE if already seen.
-            // Since we added it to Set above, helper might return false?
-            // Helper checks: if (seenSignals.has(waveId)) return false;
-            // YES, helper will fail if we add it locally first!
-
-            // Refactor: Let helper handle dedup entirely.
-            // But we have logic above (lines 154-172) that duplicates what helper does.
-            // I should remove the local dedup block if I rely on helper.
-            // Logic below assumes I should use helper.
-
-            // However, removing that block means I need to handle it here.
-
             // Derive color if missing (Robust Demo Fix)
             let signalColor = (cell.state.data as any).color;
             if (!signalColor) {
@@ -207,7 +184,7 @@ export const TimerCell: PamModule = {
 
             const propagated = handleStandardWavePropagation(cell, signal, {
                 color: signalColor
-            });
+            }, gridStore);
 
             if (!propagated && signal.waveId && cell.state.seenSignals?.has(signal.waveId)) {
                 // Return if duplicate
@@ -228,7 +205,7 @@ export const TimerCell: PamModule = {
 
                     console.log(`⏱️ Timer Cell ${cell.id} RESTARTED by wave (Sync)`);
 
-                    useGridStore.getState().updateCell(cell.id, {
+                    gridStore.getState().updateCell(cell.id, {
                         state: { ...cell.state, data }
                     }, { skipHistory: true });
                 }
@@ -238,7 +215,7 @@ export const TimerCell: PamModule = {
 
         // --- Non-Wave Signals (Click/Pulse) ---
         if (!signal.command && TimerCell.onClick) {
-            TimerCell.onClick(cell);
+            TimerCell.onClick(cell, gridStore);
         }
     },
 

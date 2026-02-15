@@ -25,8 +25,8 @@ export const HexGrid = memo(function HexGrid() {
     const { pan, zoom } = view;
     const interaction = useToolStore((state) => state.interaction);
 
-    // Only show selection highlights if we are in Selection Mode
-    const showSelection = interaction.type.startsWith('SELECT');
+    // Only show selection highlights if we are in Selection Mode or Paste Mode (to prevent flashing)
+    const showSelection = interaction.type.startsWith('SELECT') || interaction.type === 'PASTE_IDLE';
 
     // Viewport Culling
     const visibleCells = cells.filter(cell => {

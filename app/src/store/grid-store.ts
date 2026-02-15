@@ -3,7 +3,9 @@
  * Uses Zustand for reactive state management
  */
 
-import { create } from 'zustand';
+import { createStore } from 'zustand/vanilla';
+import { useStore } from 'zustand';
+import { createContext, useContext } from 'react';
 import { Cell, PamDNA, Signal, PamModule, Particle } from '@/lib/vibe-core';
 import { HexCoord, hexToId, getNeighbors, hexDistance } from '@/core/grid/hex';
 import { CHANNELS, ChannelId } from '@/core/grid/channels';
@@ -70,13 +72,15 @@ interface GridState {
     paste: (targetCoord: HexCoord) => void;
 }
 
-export const useGridStore = create<GridState>((set, get) => ({
+export type GridStore = ReturnType<typeof createGridStore>;
+
+export const createGridStore = () => createStore<GridState>((set, get, api) => ({
     cells: new Map(),
     groups: new Map(),
+    history: { past: [], future: [] },
     clipboard: [],
     signals: [],
     particles: [],
-    history: { past: [], future: [] },
 
     spawnCell: (coord, dna, pamModule) => {
         get().pushHistory(); // Save state before spawn
@@ -103,7 +107,7 @@ export const useGridStore = create<GridState>((set, get) => ({
 
         // Call onSpawn lifecycle if provided
         if (pamModule?.onSpawn) {
-            pamModule.onSpawn(newCell);
+            pamModule.onSpawn(newCell, api);
         }
 
         set((state) => {
@@ -870,4 +874,19 @@ export const useGridStore = create<GridState>((set, get) => ({
         set({ cells: newCells, groups: newGroups });
         console.log(`📋 Pasted ${state.clipboard.length} cells at ${targetCoord.q},${targetCoord.r}`);
     }
-}));
+})
+);
+
+export const GridStoreContext = createContext<GridStore | null>(null);
+
+export function useGridStore<T>(selector: (state: GridState) => T): T {
+    const store = useContext(GridStoreContext);
+    if (!store) throw new Error('Missing GridStoreContext.Provider in the tree');
+    return useStore(store, selector);
+}
+
+export function useGridStoreApi() {
+    const store = useContext(GridStoreContext);
+    if (!store) throw new Error('Missing GridStoreContext.Provider in the tree');
+    return store;
+}

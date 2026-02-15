@@ -1,5 +1,4 @@
 import { Cell, Signal } from '@/lib/vibe-core';
-import { useGridStore } from '@/store/grid-store';
 import { getNeighbors, hexDistance } from '@/core/grid/hex';
 
 interface PropagationOptions {
@@ -20,7 +19,8 @@ interface PropagationOptions {
 export function handleStandardWavePropagation(
     cell: Cell,
     signal: Signal,
-    options: PropagationOptions = {}
+    options: PropagationOptions = {},
+    gridStore: any
 ): boolean {
     const {
         defaultDelay = 0.1,
@@ -31,7 +31,7 @@ export function handleStandardWavePropagation(
     if (!signal.waveId) return false;
 
     // --- CRITICAL FIX: Fetch fresh state to prevent stale-reference deduplication failure ---
-    const freshCell = useGridStore.getState().cells.get(cell.id) || cell;
+    const freshCell = gridStore.getState().cells.get(cell.id) || cell;
     const seenSignals = freshCell.state.seenSignals || new Set<string>();
 
     if (seenSignals.has(signal.waveId)) {
@@ -124,29 +124,29 @@ export function handleStandardWavePropagation(
     if (options.instant) {
         if (options.wireless) {
             // Wireless Instant
-            const allCells = useGridStore.getState().getAllCells();
-            allCells.forEach(target => {
+            const allCells = gridStore.getState().getAllCells();
+            allCells.forEach((target: Cell) => {
                 if (target.id === cell.id) return;
                 if (signal.range && signal.range < 1000) {
                     const dist = hexDistance(cell.coord, target.coord);
                     if (dist > signal.range) return;
                 }
-                useGridStore.getState().deliverSignal(target.id, nextSignal);
+                gridStore.getState().deliverSignal(target.id, nextSignal);
             });
         } else {
             // Neighbor Instant
             // Robustness Fix: Use distance check instead of key lookup
-            const allCells = useGridStore.getState().getAllCells();
-            allCells.forEach(target => {
+            const allCells = gridStore.getState().getAllCells();
+            allCells.forEach((target: Cell) => {
                 if (target.id === cell.id) return;
                 const dist = hexDistance(cell.coord, target.coord);
                 if (Math.abs(dist - 1) < 0.1) {
-                    useGridStore.getState().deliverSignal(target.id, nextSignal);
+                    gridStore.getState().deliverSignal(target.id, nextSignal);
                 }
             });
         }
     } else {
-        useGridStore.getState().propagateSignal(cell.id, nextSignal, {
+        gridStore.getState().propagateSignal(cell.id, nextSignal, {
             speed: propagateSpeed,
             type: 'arc',
             directions: allowedDirections,
@@ -164,7 +164,7 @@ export function handleStandardWavePropagation(
         updates.activity = visualActivity;
     }
 
-    useGridStore.getState().updateCell(cell.id, {
+    gridStore.getState().updateCell(cell.id, {
         state: {
             ...freshCell.state, // Fix: Use fresh state to preserve previous sync updates (e.g. Pixel Color)
             ...updates
@@ -174,7 +174,7 @@ export function handleStandardWavePropagation(
     // Auto-reset activity after delay to allow visual pulse without storing every frame
     if (visualActivity !== false) {
         setTimeout(() => {
-            useGridStore.getState().updateCell(cell.id, {
+            gridStore.getState().updateCell(cell.id, {
                 state: {
                     activity: 0
                 }
@@ -204,7 +204,8 @@ export function createImpulse(
         inheritLastFired?: boolean; // If true, checks cooldown
         wireless?: boolean; // If true, propagates through empty space
         instant?: boolean; // If true, skips particle simulation and delivers immediately
-    } = {}
+    } = {},
+    gridStore: any
 ) {
     const now = Date.now();
     const data = cell.state.data;
@@ -259,7 +260,7 @@ export function createImpulse(
     // Auto-reset activity
     // Use data.activityDecay if we want to customize this later, but for now fixed
     setTimeout(() => {
-        useGridStore.getState().updateCell(cell.id, {
+        gridStore.getState().updateCell(cell.id, {
             state: { activity: 0 }
         }, { skipHistory: true });
     }, 300);
@@ -268,11 +269,11 @@ export function createImpulse(
     if (options.wireless && options.instant) {
         // Instant Wireless (God Mode)
         // console.log('⚡ Wireless Instant Propagation');
-        const allCells = useGridStore.getState().getAllCells();
+        const allCells = gridStore.getState().getAllCells();
         const start = Date.now();
         let deliveredCount = 0;
 
-        allCells.forEach(target => {
+        allCells.forEach((target: Cell) => {
             if (target.id === cell.id) return;
             // Respect range if specified (though usually instant implies global or range-limited)
             if (options.range && options.range < 1000) { // arbitrary threshold for "global"
@@ -281,7 +282,7 @@ export function createImpulse(
             }
 
             // Deliver directly
-            useGridStore.getState().deliverSignal(target.id, signal);
+            gridStore.getState().deliverSignal(target.id, signal);
             deliveredCount++;
         });
 
@@ -293,17 +294,17 @@ export function createImpulse(
         // Instant Neighbor Propagation
         // Robustness Fix: Iterate all cells and check physical distance (dist == 1)
         // This avoids issues where getNeighbors() + hexToId() fails due to coordinate type mismatches (string vs number)
-        const allCells = useGridStore.getState().getAllCells();
+        const allCells = gridStore.getState().getAllCells();
         let deliveredCount = 0;
 
-        allCells.forEach(target => {
+        allCells.forEach((target: Cell) => {
             if (target.id === cell.id) return;
 
             const dist = hexDistance(cell.coord, target.coord);
             // Neighbor means distance is exactly 1
             if (Math.abs(dist - 1) < 0.1) {
                 console.log(`⚡ Found neighbor ${target.id} at dist ${dist}, delivering signal`);
-                useGridStore.getState().deliverSignal(target.id, signal);
+                gridStore.getState().deliverSignal(target.id, signal);
                 deliveredCount++;
             }
         });
@@ -318,7 +319,7 @@ export function createImpulse(
     // console.log('⚡ Calling propagateSignal with:', signal);
 
     // Propagate (Standard / Particle)
-    useGridStore.getState().propagateSignal(cell.id, signal, {
+    gridStore.getState().propagateSignal(cell.id, signal, {
         speed: speed,
         type: options.type || 'arc', // Default to arc if not specified
         directions: directions,
@@ -327,7 +328,7 @@ export function createImpulse(
     });
 
     // Update State
-    useGridStore.getState().updateCell(cell.id, {
+    gridStore.getState().updateCell(cell.id, {
         state: {
             activity: 1.0,
             seenSignals: currentSeen,

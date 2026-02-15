@@ -4,7 +4,7 @@
  */
 
 import { PamModule, Cell, Signal } from '@/lib/vibe-core';
-import { useGridStore } from '@/store/grid-store';
+// Removed global store import
 import { handleStandardWavePropagation, createImpulse } from '@/core/grid/propagation';
 import { NeuronDNA } from '@/pams/dna-catalog';
 import { NeuronConfig } from './Config';
@@ -27,7 +27,7 @@ export const NeuronCell: PamModule = {
         };
     },
 
-    onSignal: (cell: Cell, signal: Signal) => {
+    onSignal: (cell: Cell, signal: Signal, gridStore: any) => {
         // 1. Handle Wave Propagation (Pass-through or Output?)
         // Neurons act as processing nodes, so they usually consume signals and emit a NEW calculated signal.
         // However, if it's just a visual wave passing through, we might want to let it pass?
@@ -48,7 +48,7 @@ export const NeuronCell: PamModule = {
         // --- CRITICAL FIX: Fetch fresh state to prevent stale-closure race conditions ---
         // When multiple signals arrive in the same tick, 'cell' is a stale snapshot from the start of the tick.
         // We must read the latest state from the store to see updates made by previous signals in this batch.
-        const freshCell = useGridStore.getState().cells.get(cell.id) || cell;
+        const freshCell = gridStore.getState().cells.get(cell.id) || cell;
         const data = freshCell.state.data || {};
 
         // Retrieve or initialize accumulation state (stored in data for persistence/debug)
@@ -66,7 +66,7 @@ export const NeuronCell: PamModule = {
         newInputBuffer++;
 
         // Update state
-        useGridStore.getState().updateCell(cell.id, {
+        gridStore.getState().updateCell(cell.id, {
             state: {
                 ...freshCell.state, // Use fresh state
                 activity: 0.5, // "Charging" visual
@@ -90,9 +90,9 @@ export const NeuronCell: PamModule = {
         // Solution: `onTick` is better.
     },
 
-    onTick: (cellArg: Cell, deltaTime: number) => {
+    onTick: (cellArg: Cell, deltaTime: number, gridStore: any) => {
         // Fetch fresh state for evaluation
-        const cell = useGridStore.getState().cells.get(cellArg.id) || cellArg;
+        const cell = gridStore.getState().cells.get(cellArg.id) || cellArg;
 
         const data = cell.state.data || {};
         const lastInputTime = (data as any)._lastInputTime || 0;
@@ -105,7 +105,7 @@ export const NeuronCell: PamModule = {
             (Date.now() - lastInputTime > INPUT_WINDOW_MS) &&
             lastInputTime > processedTime
         ) {
-            evaluateLogic(cell, inputBuffer);
+            evaluateLogic(cell, inputBuffer, gridStore);
         }
     },
 
@@ -122,7 +122,7 @@ export const NeuronCell: PamModule = {
     }
 };
 
-function evaluateLogic(cell: Cell, inputCount: number) {
+function evaluateLogic(cell: Cell, inputCount: number, gridStore: any) {
     const data = cell.state.data || {};
     const operation = data.operation || 'AND';
 
@@ -160,23 +160,23 @@ function evaluateLogic(cell: Cell, inputCount: number) {
             color: '#10b981', // Emerald for Logic True
             strength: 1.0,
             command: 'TRIGGER'
-        });
+        }, gridStore);
     } else {
         // Visual Feedback for "Failed Logic" (Fizzle)
-        useGridStore.getState().updateCell(cell.id, {
+        gridStore.getState().updateCell(cell.id, {
             state: {
                 activity: 0.2 // Low activity "Fizzle"
             }
         }, { skipHistory: true });
         setTimeout(() => {
-            useGridStore.getState().updateCell(cell.id, {
+            gridStore.getState().updateCell(cell.id, {
                 state: { activity: 0 }
             }, { skipHistory: true });
         }, 200);
     }
 
     // Mark as processed
-    useGridStore.getState().updateCell(cell.id, {
+    gridStore.getState().updateCell(cell.id, {
         state: {
             ...cell.state,
             data: {

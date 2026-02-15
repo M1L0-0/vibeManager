@@ -53,7 +53,7 @@ export const EndpointDashboard: React.FC = () => {
 
     return (
         <div className={`
-            fixed right-4 top-20 z-40 flex flex-col items-end pointer-events-none
+            absolute right-4 top-20 z-40 flex flex-col items-end pointer-events-none
             ${collapsed ? 'w-10' : 'w-72'}
             transition-all duration-300
         `}>

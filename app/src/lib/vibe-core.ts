@@ -121,22 +121,22 @@ export interface PamModule {
     /**
      * Called when the cell is spawned
      */
-    onSpawn?: (cell: Cell) => void;
+    onSpawn?: (cell: Cell, gridStore: any) => void;
 
     /**
      * Called when a signal is received
      */
-    onSignal?: (cell: Cell, signal: Signal) => void;
+    onSignal?: (cell: Cell, signal: Signal, gridStore: any) => void;
 
     /**
      * Called every tick (for autonomous behavior)
      */
-    onTick?: (cell: Cell, deltaTime: number) => void;
+    onTick?: (cell: Cell, deltaTime: number, gridStore: any) => void;
 
     /**
      * Called when the cell is clicked
      */
-    onClick?: (cell: Cell) => void;
+    onClick?: (cell: Cell, gridStore: any) => void;
 
     /**
      * Optional: Get a short text label to display on the cell (e.g. "3.0" for timer)

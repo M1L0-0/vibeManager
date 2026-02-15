@@ -4,7 +4,7 @@
  */
 
 import { PamModule, Cell, Signal } from '@/lib/vibe-core';
-import { useGridStore } from '@/store/grid-store';
+// Removed: import { useGridStore } from '@/store/grid-store';
 
 import { NucleusConfig } from './Config';
 
@@ -26,13 +26,13 @@ export const NucleusCell: PamModule = {
         };
     },
 
-    onSignal: (cell: Cell, signal: Signal) => {
+    onSignal: (cell: Cell, signal: Signal, gridStore: any) => {
         // DNA Absorption Logic
         if (signal.dnaPayload) {
             const currentStorage = (cell.state.data as any)?.dnaStorage || [];
             const newStorage = [...currentStorage, signal.dnaPayload];
 
-            useGridStore.getState().updateCell(cell.id, {
+            gridStore.getState().updateCell(cell.id, {
                 state: {
                     ...cell.state,
                     activity: 1,

@@ -4,11 +4,11 @@
  */
 
 import { PamModule, Cell, Signal, PamDNA } from '@/lib/vibe-core';
-import { useGridStore } from '@/store/grid-store';
+// Removed global store import
 import { RibosomeConfig } from './Config';
 
 // Helper for broadcasting DNA
-const broadcastDNA = (cell: Cell) => {
+const broadcastDNA = (cell: Cell, gridStore: any) => {
     // Broadcast DNA to all neighbors
     const template = (cell.state.data as any)?.dnaTemplate;
     if (!template) return;
@@ -24,7 +24,7 @@ const broadcastDNA = (cell: Cell) => {
     };
 
     // Broadcast Signal
-    useGridStore.getState().propagateSignal(cell.id, {
+    gridStore.getState().propagateSignal(cell.id, {
         id: `sig-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         type: 'dna-transfer',
         sourceId: cell.id,
@@ -36,7 +36,7 @@ const broadcastDNA = (cell: Cell) => {
     });
 
     // Visual feedback (pulse)
-    useGridStore.getState().updateCell(cell.id, {
+    gridStore.getState().updateCell(cell.id, {
         state: { ...cell.state, activity: 1 }
     });
 };
@@ -64,15 +64,15 @@ export const RibosomeCell: PamModule = {
         };
     },
 
-    onSignal: (cell, signal) => {
+    onSignal: (cell, signal, gridStore) => {
         // Trigger on any signal (or specific type if required)
         if (signal.type === 'dna-transfer') return; // Don't react to own output
 
-        broadcastDNA(cell);
+        broadcastDNA(cell, gridStore);
     },
 
-    onClick: (cell) => {
-        broadcastDNA(cell);
+    onClick: (cell, gridStore) => {
+        broadcastDNA(cell, gridStore);
     },
 
     getLabel: (cell) => 'DNA',
@@ -81,7 +81,7 @@ export const RibosomeCell: PamModule = {
 
     configComponent: RibosomeConfig,
 
-    onTick: (cell: Cell, deltaTime: number) => {
+    onTick: (cell: Cell, deltaTime: number, gridStore: any) => {
         // Update physics or logic
     },
 };

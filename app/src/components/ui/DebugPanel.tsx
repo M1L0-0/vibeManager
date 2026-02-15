@@ -5,8 +5,9 @@ import { useGridStore } from '@/store/grid-store';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function DebugPanel() {
-    const { debugSelectedId, view } = useToolStore();
-    const gridStore = useGridStore();
+    const debugSelectedId = useToolStore(s => s.debugSelectedId);
+    const view = useToolStore(s => s.view);
+    const gridStore = useGridStore(s => s); // Need whole store for cells access? Wait, useGridStore also needs selector.
 
     if (!view.showDebugOverlay) return null;
 
@@ -20,7 +21,7 @@ export function DebugPanel() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
-                className="fixed bottom-4 right-4 w-80 bg-black/80 backdrop-blur-md border border-red-500/30 rounded-lg p-4 text-xs font-mono text-green-400 pointer-events-none select-none z-50 overflow-hidden"
+                className="absolute bottom-4 right-4 w-80 bg-black/80 backdrop-blur-md border border-red-500/30 rounded-lg p-4 text-xs font-mono text-green-400 pointer-events-none select-none z-50 overflow-hidden"
             >
                 <h3 className="text-red-400 font-bold mb-2 border-b border-red-500/30 pb-1">VIBE OS KERNEL DEBUG</h3>
 

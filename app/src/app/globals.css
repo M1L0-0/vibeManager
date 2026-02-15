@@ -67,3 +67,12 @@ body {
   background: rgba(107, 114, 128, 1);
   /* gray-500 */
 }
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

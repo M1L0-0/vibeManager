@@ -10,24 +10,36 @@ import { useSimulationStore } from '@/store/simulation-store';
 import { useGridStore } from '@/store/grid-store';
 import { cn } from '@/lib/utils';
 import { useRef, useState } from 'react';
-import { useToolStore } from '@/store/tool-store';
+import { useToolStore, useToolStoreApi } from '@/store/tool-store';
+import { useGlobalUIStore } from '@/store/global-ui-store';
 import { pixelToHex } from '@/core/grid/hex';
 import { DishLibraryModal } from './DishLibraryModal';
 import { libraryDB } from '@/store/library-db';
 import { generateGridThumbnail } from '@/lib/thumbnail-generator';
 
 export function SimulationControls() {
-    const {
-        isPlaying,
-        setIsPlaying,
-        togglePlay,
-        simulationSpeed,
-        setSpeed,
-        incrementTick,
-    } = useSimulationStore();
-    const { exportGrid, importGrid, getAllCells, undo, redo, history, copy, paste } = useGridStore(); // Need getAllCells for thumb
-    const { selection } = useToolStore();
-    const { pan, zoom } = useToolStore(state => state.view);
+    const isPlaying = useSimulationStore(s => s.isPlaying);
+    // const setIsPlaying = useSimulationStore(s => s.setIsPlaying); // Unused in destructure but used in code?
+    const togglePlay = useSimulationStore(s => s.togglePlay);
+    const simulationSpeed = useSimulationStore(s => s.simulationSpeed);
+    const setSpeed = useSimulationStore(s => s.setSpeed);
+    const incrementTick = useSimulationStore(s => s.incrementTick);
+
+    // We need setIsPlaying too
+    const setIsPlaying = useSimulationStore(s => s.setIsPlaying);
+
+    const exportGrid = useGridStore(s => s.exportGrid);
+    const importGrid = useGridStore(s => s.importGrid);
+    const getAllCells = useGridStore(s => s.getAllCells);
+    const undo = useGridStore(s => s.undo);
+    const redo = useGridStore(s => s.redo);
+    const history = useGridStore(s => s.history);
+    const copy = useGridStore(s => s.copy);
+    const paste = useGridStore(s => s.paste);
+
+    const selection = useToolStore(s => s.selection);
+    const pan = useToolStore(state => state.view.pan);
+    const zoom = useToolStore(state => state.view.zoom);
     const fileInputRef = useRef<HTMLInputElement>(null); // This ref is no longer used for upload, but kept for now if needed elsewhere.
 
     // Undo/Redo Keyboard Shortcuts
@@ -53,8 +65,11 @@ export function SimulationControls() {
             }
             if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
                 e.preventDefault();
-                // Enter Paste Mode (Click to paste)
-                useToolStore.getState().setToolPaste();
+                // Set Global Tool to Paste
+                useGlobalUIStore.getState().setActiveTool('paste');
+            }
+            if (e.key === 'Escape') {
+                useGlobalUIStore.getState().setActiveTool('hand');
             }
         };
 
@@ -116,13 +131,16 @@ export function SimulationControls() {
         setIsLibraryOpen(true);
     };
 
-    const setTool = useToolStore((state) => state.setToolHand); // Not used for toggle anymore
-    const { toggleSynapticVision, view } = useToolStore();
+    // const setTool = useToolStore((state) => state.setToolHand); // Not used for toggle anymore
+    const toggleSynapticVision = useToolStore(s => s.toggleSynapticVision);
+    const view = useToolStore(s => s.view);
     const showParticles = view.showSynapticVision;
+
+    const toolStore = useToolStoreApi();
 
     return (
         <>
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 p-2 bg-black/80 backdrop-blur-md rounded-full border border-white/10 shadow-2xl z-50">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 p-2 bg-black/80 backdrop-blur-md rounded-full border border-white/10 shadow-2xl z-50 pointer-events-auto max-w-[90%] overflow-x-auto scrollbar-hide">
                 {/* Play/Pause */}
                 <button
                     onClick={togglePlay}

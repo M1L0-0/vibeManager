@@ -1,11 +1,9 @@
-/**
- * Tool Store - Manages the current UI tool state machine
- */
-
-import { create } from 'zustand';
+import { createStore } from 'zustand/vanilla';
+import { useStore } from 'zustand';
+import { createContext, useContext } from 'react';
 import { PamDNA, Cell } from '@/lib/vibe-core';
 import { getPamModule } from '@/pams/registry';
-import { useGridStore } from './grid-store';
+import { GridStore } from './grid-store';
 import { hexToPixel, pixelToHex, HexCoord, hexToId } from '@/core/grid/hex';
 
 interface Point { x: number; y: number; }
@@ -20,7 +18,6 @@ export interface ViewState {
     zoom: number;
     // Selection View State
     selectionRect?: { start: Point; end: Point };
-    // future: showHeatmap, showGridLines
 }
 
 // --- Interaction (FSM) State ---
@@ -71,6 +68,7 @@ export interface ToolStoreState {
     toggleDebugOverlay: () => void;
     setPan: (pan: { x: number; y: number }) => void;
     setZoom: (zoom: number) => void;
+    setViewSettings: (settings: Partial<ViewState>) => void;
 
     // FSM Transitions
     setToolHand: () => void;
@@ -89,11 +87,13 @@ export interface ToolStoreState {
     clearInspection: () => void;
 }
 
-export const useToolStore = create<ToolStoreState>((set, get) => ({
+export type ToolStore = ReturnType<typeof createToolStore>;
+
+export const createToolStore = (gridStore: GridStore) => createStore<ToolStoreState>((set, get) => ({
     view: {
-        showSynapticVision: true, // Show signals by default!
-        showNebula: true, // Default to on
-        showDebugOverlay: false, // Default to off
+        showSynapticVision: true,
+        showNebula: true,
+        showDebugOverlay: false,
         pan: { x: 0, y: 0 },
         zoom: 1,
     },
@@ -103,7 +103,6 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
     selection: new Set(),
 
     // --- View Actions ---
-
     toggleSynapticVision: () => set(state => ({
         view: { ...state.view, showSynapticVision: !state.view.showSynapticVision }
     })),
@@ -124,31 +123,24 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
         view: { ...state.view, zoom }
     })),
 
-    // --- FSM Transitions (Tool Selection) ---
+    setViewSettings: (settings) => set(state => ({
+        view: { ...state.view, ...settings }
+    })),
 
+    // --- FSM Transitions ---
     setToolHand: () => set({ interaction: { type: 'HAND_IDLE' } }),
-
-    setToolInspect: () => set({ interaction: { type: 'INSPECT_IDLE' } }), // Clears any target
-
-    setToolGenesis: (dna) => set({ interaction: { type: 'GENESIS_IDLE', dna } }), // Default to simple spawn mode for that DNA
-
+    setToolInspect: () => set({ interaction: { type: 'INSPECT_IDLE' } }),
+    setToolGenesis: (dna) => set({ interaction: { type: 'GENESIS_IDLE', dna } }),
     setToolGenesisGlue: () => set({ interaction: { type: 'GENESIS_GLUING_SOURCE' } }),
-
     setToolGenesisTransplant: () => set({ interaction: { type: 'GENESIS_TRANSPLANT_IDLE' } }),
-
     setToolEraser: () => set({ interaction: { type: 'ERASER_IDLE' } }),
-
-    setToolSelect: () => {
-        console.log('[ToolStore] setToolSelect called');
-        // Reset selection state when entering tool
-        set({
-            interaction: { type: 'SELECT_IDLE' },
-            view: { ...get().view, selectionRect: undefined }
-        });
-    },
-
+    setToolSelect: () => set({
+        interaction: { type: 'SELECT_IDLE' },
+        view: { ...get().view, selectionRect: undefined }
+    }),
     setToolPaste: () => set({ interaction: { type: 'PASTE_IDLE' } }),
 
+    // --- Selection ---
     setSelection: (selection) => set({ selection }),
     clearSelection: () => set({ selection: new Set(), view: { ...get().view, selectionRect: undefined } }),
 
@@ -167,7 +159,6 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
     endSelection: () => {
         const state = get();
         const selectionRect = state.view.selectionRect;
-        console.log('[ToolStore] endSelection', selectionRect);
         if (!selectionRect) {
             set({ interaction: { type: 'SELECT_IDLE' } });
             return;
@@ -179,11 +170,10 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
         const minY = Math.min(start.y, end.y);
         const maxY = Math.max(start.y, end.y);
 
-        const allCells = useGridStore.getState().getAllCells();
-        const newSelection = new Set<string>();
+        console.log(`[ToolStore] End Selection. Bounds: [${minX.toFixed(2)}, ${maxX.toFixed(2)}] x [${minY.toFixed(2)}, ${maxY.toFixed(2)}]`);
 
-        console.log(`[ToolStore] Selection Bounds: x=${minX}-${maxX}, y=${minY}-${maxY}`);
-        console.log(`[ToolStore] Checking ${allCells.length} cells`);
+        const allCells = gridStore.getState().getAllCells();
+        const newSelection = new Set<string>();
 
         const HEX_SIZE = 40;
         const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE;
@@ -191,26 +181,22 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
         const halfW = HEX_WIDTH / 2;
         const halfH = HEX_HEIGHT / 2;
 
-        console.log(`[ToolStore] Selection Rect: [${minX.toFixed(1)}, ${maxX.toFixed(1)}] x [${minY.toFixed(1)}, ${maxY.toFixed(1)}]`);
-
+        let matchCount = 0;
         allCells.forEach(cell => {
             const pos = hexToPixel(cell.coord);
-
-            // Calculate Cell Bounding Box
             const cellMinX = pos.x - halfW;
             const cellMaxX = pos.x + halfW;
             const cellMinY = pos.y - halfH;
             const cellMaxY = pos.y + halfH;
 
-            // Check Intersection: (RectA.Left < RectB.Right) && (RectA.Right > RectB.Left) ...
             const overlaps = (minX < cellMaxX) && (maxX > cellMinX) && (minY < cellMaxY) && (maxY > cellMinY);
-
             if (overlaps) {
                 newSelection.add(cell.id);
+                matchCount++;
             }
         });
 
-        console.log(`[ToolStore] Selected ${newSelection.size} cells`);
+        console.log(`[ToolStore] Selected ${matchCount} cells.`);
 
         set({
             selection: newSelection,
@@ -227,13 +213,11 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
     },
 
     // --- Main Event Reducer ---
-
     handleGridEvent: (event) => {
         const state = get().interaction;
-        const gridStore = useGridStore.getState();
-        // Note: Accessing gridStore here is safe because actions are invoked at runtime
+        // Access provided store instance
 
-        // --- GLOBAL DEBUG HOOK ---
+        // Global Debug
         if (event.type === 'CLICK' || event.type === 'RIGHT_CLICK') {
             set({ debugSelectedId: event.cell.id });
         }
@@ -241,19 +225,14 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
         switch (state.type) {
             case 'HAND_IDLE': {
                 if (event.type === 'CLICK') {
-                    // Trigger PAM onClick
                     const pam = getPamModule(event.cell.dna.id);
-                    pam?.onClick?.(event.cell);
+                    pam?.onClick?.(event.cell, gridStore);
                 }
                 if (event.type === 'RIGHT_CLICK') {
-                    // Right click logic (e.g. Timer Reset)
-                    // Re-implementing specific right-click logic or delegating to PAM?
-                    // Previous logic was hardcoded in HexGrid. Let's keep it robust.
                     if (event.cell.dna.id === 'timer') {
                         const data = event.cell.state.data;
                         if (data) {
-                            console.log(`🔄 Timer Cell ${event.cell.id}: Reset via right-click`);
-                            gridStore.updateCell(event.cell.id, {
+                            gridStore.getState().updateCell(event.cell.id, {
                                 state: {
                                     ...event.cell.state,
                                     data: {
@@ -279,35 +258,28 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
 
             case 'GENESIS_IDLE': {
                 if (event.type === 'CLICK') {
-                    console.log(`🧬 Spawning ${state.dna.name} at ${event.cell.coord.q},${event.cell.coord.r}`);
-                    gridStore.killCell(event.cell.id);
+                    gridStore.getState().killCell(event.cell.id);
                     const pam = getPamModule(state.dna.id);
-                    gridStore.spawnCell(event.cell.coord, state.dna, pam);
+                    gridStore.getState().spawnCell(event.cell.coord, state.dna, pam);
                 }
                 if (event.type === 'BACKGROUND_CLICK') {
-                    console.log(`🧬 Spawning ${state.dna.name} on BACKGROUND at ${event.coord.q},${event.coord.r}`);
-                    // Spawn on empty space
-                    // Check if occupied? (GridStore handles this check usually, but safely)
                     const pam = getPamModule(state.dna.id);
-                    gridStore.spawnCell(event.coord, state.dna, pam);
+                    gridStore.getState().spawnCell(event.coord, state.dna, pam);
                 }
                 break;
             }
 
             case 'ERASER_IDLE': {
                 if (event.type === 'CLICK') {
-                    console.log(`🗑️ Eraser: Killing cell ${event.cell.id}`);
-                    gridStore.killCell(event.cell.id);
+                    gridStore.getState().killCell(event.cell.id);
                 }
                 break;
             }
 
             case 'GENESIS_TRANSPLANT_IDLE': {
                 if (event.type === 'MOUSE_DOWN') {
-                    // Start Dragging
                     set({ interaction: { type: 'GENESIS_DRAGGING', cell: event.cell } });
                 }
-                // Allow selecting directly via click (redundant but safe)
                 if (event.type === 'CLICK') {
                     set({ interaction: { type: 'GENESIS_HOLDING', cell: event.cell, ignoreNextClick: false } });
                 }
@@ -316,20 +288,15 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
 
             case 'GENESIS_DRAGGING': {
                 if (event.type === 'MOUSE_UP') {
-                    // Completing the drag
                     const draggingCell = state.cell;
                     const targetCell = event.cell;
 
                     if (draggingCell.id === targetCell.id) {
-                        // Dropped on self -> Transition to HOLDING (Click-to-pick-up behavior)
-                        // We set ignoreNextClick=true because a CLICK event will typically follow this MouseUp immediately
                         set({ interaction: { type: 'GENESIS_HOLDING', cell: draggingCell, ignoreNextClick: true } });
                         return;
                     }
 
-                    console.log(`🔬 Transplanting (Drag) from ${draggingCell.id} to ${targetCell.id}`);
-
-                    // Logic copied from previous HexGrid handler
+                    // Swap Logic
                     const sourceCoord = draggingCell.coord;
                     const targetCoord = targetCell.coord;
                     const sourceDNA = draggingCell.dna;
@@ -337,26 +304,23 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
                     const sourceState = draggingCell.state;
                     const targetState = targetCell.state;
 
-                    // Kill both cells
-                    gridStore.killCell(draggingCell.id);
-                    gridStore.killCell(targetCell.id);
+                    gridStore.getState().killCell(draggingCell.id);
+                    gridStore.getState().killCell(targetCell.id);
 
-                    // Swap
                     const sourcePam = getPamModule(sourceDNA.id);
                     const targetPam = getPamModule(targetDNA.id);
 
-                    gridStore.spawnCell(targetCoord, sourceDNA, sourcePam);
-                    gridStore.spawnCell(sourceCoord, targetDNA, targetPam);
+                    gridStore.getState().spawnCell(targetCoord, sourceDNA, sourcePam);
+                    gridStore.getState().spawnCell(sourceCoord, targetDNA, targetPam);
 
+                    // Restore state after spawn
                     setTimeout(() => {
-                        const newTargetCell = gridStore.getCellAt(targetCoord);
-                        const newSourceCell = gridStore.getCellAt(sourceCoord);
-
-                        if (newTargetCell) gridStore.updateCell(newTargetCell.id, { state: sourceState });
-                        if (newSourceCell) gridStore.updateCell(newSourceCell.id, { state: targetState });
+                        const newTargetCell = gridStore.getState().getCellAt(targetCoord);
+                        const newSourceCell = gridStore.getState().getCellAt(sourceCoord);
+                        if (newTargetCell) gridStore.getState().updateCell(newTargetCell.id, { state: sourceState });
+                        if (newSourceCell) gridStore.getState().updateCell(newSourceCell.id, { state: targetState });
                     }, 10);
 
-                    // Return to idle
                     set({ interaction: { type: 'GENESIS_TRANSPLANT_IDLE' } });
                 }
                 break;
@@ -365,7 +329,6 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
             case 'GENESIS_HOLDING': {
                 if (event.type === 'CLICK') {
                     if (state.ignoreNextClick) {
-                        // Consume the immediate click from the MouseUp that put us here
                         set({ interaction: { type: 'GENESIS_HOLDING', cell: state.cell, ignoreNextClick: false } });
                         return;
                     }
@@ -374,15 +337,11 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
                     const targetCell = event.cell;
 
                     if (holdingCell.id === targetCell.id) {
-                        // Clicked self again -> Deselect/Put down
-                        console.log(`🔬 Transplant Cancelled`);
                         set({ interaction: { type: 'GENESIS_TRANSPLANT_IDLE' } });
                         return;
                     }
 
-                    console.log(`🔬 Transplanting (Click) from ${holdingCell.id} to ${targetCell.id}`);
-
-                    // Swap Logic (Duplicated for now, could be helper)
+                    // Swap Logic (Same as above)
                     const sourceCoord = holdingCell.coord;
                     const targetCoord = targetCell.coord;
                     const sourceDNA = holdingCell.dna;
@@ -390,21 +349,20 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
                     const sourceState = holdingCell.state;
                     const targetState = targetCell.state;
 
-                    gridStore.killCell(holdingCell.id);
-                    gridStore.killCell(targetCell.id);
+                    gridStore.getState().killCell(holdingCell.id);
+                    gridStore.getState().killCell(targetCell.id);
 
                     const sourcePam = getPamModule(sourceDNA.id);
                     const targetPam = getPamModule(targetDNA.id);
 
-                    gridStore.spawnCell(targetCoord, sourceDNA, sourcePam);
-                    gridStore.spawnCell(sourceCoord, targetDNA, targetPam);
+                    gridStore.getState().spawnCell(targetCoord, sourceDNA, sourcePam);
+                    gridStore.getState().spawnCell(sourceCoord, targetDNA, targetPam);
 
                     setTimeout(() => {
-                        const newTargetCell = gridStore.getCellAt(targetCoord);
-                        const newSourceCell = gridStore.getCellAt(sourceCoord);
-
-                        if (newTargetCell) gridStore.updateCell(newTargetCell.id, { state: sourceState });
-                        if (newSourceCell) gridStore.updateCell(newSourceCell.id, { state: targetState });
+                        const newTargetCell = gridStore.getState().getCellAt(targetCoord);
+                        const newSourceCell = gridStore.getState().getCellAt(sourceCoord);
+                        if (newTargetCell) gridStore.getState().updateCell(newTargetCell.id, { state: sourceState });
+                        if (newSourceCell) gridStore.getState().updateCell(newSourceCell.id, { state: targetState });
                     }, 10);
 
                     set({ interaction: { type: 'GENESIS_TRANSPLANT_IDLE' } });
@@ -414,7 +372,6 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
 
             case 'GENESIS_GLUING_SOURCE': {
                 if (event.type === 'CLICK') {
-                    console.log(`🔗 Glue: Selected source ${event.cell.id}`);
                     set({ interaction: { type: 'GENESIS_GLUING_TARGET', sourceId: event.cell.id } });
                 }
                 break;
@@ -423,13 +380,10 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
             case 'GENESIS_GLUING_TARGET': {
                 if (event.type === 'CLICK') {
                     if (state.sourceId === event.cell.id) {
-                        // Clicked same cell -> Deselect
                         set({ interaction: { type: 'GENESIS_GLUING_SOURCE' } });
                         return;
                     }
-                    console.log(`🔗 Glue: Merging ${state.sourceId} + ${event.cell.id}`);
-                    gridStore.mergeCells(state.sourceId, event.cell.id);
-                    // Reset to Source selection for next merge
+                    gridStore.getState().mergeCells(state.sourceId, event.cell.id);
                     set({ interaction: { type: 'GENESIS_GLUING_SOURCE' } });
                 }
                 break;
@@ -437,7 +391,6 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
 
             case 'SELECT_IDLE': {
                 if (event.type === 'CLICK') {
-                    // Toggle selection of clicked cell
                     const currentSelection = new Set(get().selection);
                     if (currentSelection.has(event.cell.id)) {
                         currentSelection.delete(event.cell.id);
@@ -452,25 +405,29 @@ export const useToolStore = create<ToolStoreState>((set, get) => ({
                 break;
             }
 
-            case 'SELECT_DRAGGING': {
-                // Handled by Viewport usually, but if we get here ensure we ignore stuff or handle completion?
-                break;
-            }
-
             case 'PASTE_IDLE': {
                 if (event.type === 'CLICK' || event.type === 'BACKGROUND_CLICK') {
-                    console.log(`📋 Paste Tool: Pasting at ${event.type === 'CLICK' ? event.cell.coord.q + ',' + event.cell.coord.r : event.coord.q + ',' + event.coord.r}`);
                     const targetCoord = event.type === 'CLICK' ? event.cell.coord : event.coord;
-                    gridStore.paste(targetCoord);
-                    set({ interaction: { type: 'HAND_IDLE' } }); // Revert to hand after paste
+                    gridStore.getState().paste(targetCoord);
+                    // Stay in PASTE_IDLE for multi-paste/stamping
+                    // set({ interaction: { type: 'HAND_IDLE' } });
                 }
                 break;
             }
         }
-
-        // --- Global Transitions (Drag Logic) ---
-        // This is tricky. Dragging usually starts from MOUSE_DOWN.
-        // We only want to allow dragging if we are in "Transplant Mode".
-        // Use setToolGenesisTransplant() (need to add this) to enter that mode.
-    },
+    }
 }));
+
+export const ToolStoreContext = createContext<ToolStore | null>(null);
+
+export function useToolStore<T>(selector: (state: ToolStoreState) => T): T {
+    const store = useContext(ToolStoreContext);
+    if (!store) throw new Error('Missing ToolStoreContext.Provider in the tree');
+    return useStore(store, selector);
+}
+
+export function useToolStoreApi() {
+    const store = useContext(ToolStoreContext);
+    if (!store) throw new Error('Missing ToolStoreContext.Provider in the tree');
+    return store;
+}

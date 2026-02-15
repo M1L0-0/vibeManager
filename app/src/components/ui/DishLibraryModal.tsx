@@ -16,8 +16,8 @@ type Tab = 'Demos' | 'User';
 export function DishLibraryModal({ isOpen, onClose }: DishLibraryModalProps) {
     const [dishes, setDishes] = useState<DishRecord[]>([]);
     const [activeTab, setActiveTab] = useState<Tab>('Demos');
-    const { importGrid } = useGridStore();
-    const { setIsPlaying } = useSimulationStore();
+    const importGrid = useGridStore(s => s.importGrid);
+    const setIsPlaying = useSimulationStore(s => s.setIsPlaying);
 
     useEffect(() => {
         if (isOpen) {
@@ -100,7 +100,7 @@ export function DishLibraryModal({ isOpen, onClose }: DishLibraryModalProps) {
 
     return (
         <div
-            className="fixed inset-0 z-50 flex justify-end bg-black/10 backdrop-blur-[2px]"
+            className="fixed inset-0 z-50 flex justify-end bg-black/10 backdrop-blur-[2px] pointer-events-auto"
             onClick={onClose}
         >
             <div

@@ -4,7 +4,7 @@
  */
 
 import { PamModule, Cell, Signal } from '@/lib/vibe-core';
-import { useGridStore } from '@/store/grid-store';
+// Removed global store import
 import { PixelDNA } from '@/pams/dna-catalog';
 import { CHANNELS, ChannelId } from '@/core/grid/channels';
 import { PixelConfig } from './Config';
@@ -14,9 +14,9 @@ export const PixelCell: PamModule = {
     dna: PixelDNA,
     configComponent: PixelConfig,
 
-    onSpawn: (cell: Cell) => {
+    onSpawn: (cell: Cell, gridStore: any) => {
         // Initialize with default color
-        useGridStore.getState().updateCell(cell.id, {
+        gridStore.getState().updateCell(cell.id, {
             state: {
                 ...cell.state,
                 data: {
@@ -28,10 +28,10 @@ export const PixelCell: PamModule = {
         });
     },
 
-    onClick: (cell: Cell) => {
+    onClick: (cell: Cell, gridStore: any) => {
         console.log('🖥️ Pixel Clicked:', cell.id);
         // Toggle activity for visual feedback
-        useGridStore.getState().updateCell(cell.id, {
+        gridStore.getState().updateCell(cell.id, {
             state: {
                 ...cell.state,
                 activity: 1.0
@@ -39,14 +39,14 @@ export const PixelCell: PamModule = {
         }, { skipHistory: true });
 
         setTimeout(() => {
-            useGridStore.getState().updateCell(cell.id, {
+            gridStore.getState().updateCell(cell.id, {
                 state: { activity: 0 }
             }, { skipHistory: true });
         }, 500);
     },
 
-    onSignal: (cell: Cell, signal: Signal) => {
-        const store = useGridStore.getState();
+    onSignal: (cell: Cell, signal: Signal, gridStore: any) => {
+        const store = gridStore.getState();
         const freshCell = store.cells.get(cell.id) || cell;
         const data = freshCell.state.data || {};
 
@@ -101,7 +101,7 @@ export const PixelCell: PamModule = {
 
         // 3. Decay Activity
         setTimeout(() => {
-            const currentStore = useGridStore.getState();
+            const currentStore = gridStore.getState();
             if (currentStore.cells.has(cell.id)) {
 
                 // If temporary, revert display color
@@ -142,7 +142,7 @@ export const PixelCell: PamModule = {
         handleStandardWavePropagation(cell, propagationSignal, {
             color: signalColor,
             allowedDirections: [0, 1, 2, 3, 4, 5]
-        });
+        }, gridStore);
     },
 
     // Custom renderer hook?

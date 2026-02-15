@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useToolStore } from '@/store/tool-store';
+import { useGlobalUIStore } from '@/store/global-ui-store';
 import { REGISTRY, getAllCellTypes } from '@/pams/registry';
 import { cn } from '@/lib/utils';
 import * as LucideIcons from 'lucide-react';
@@ -12,34 +12,34 @@ import { GlassButton, GlassPanel } from './Glass';
 import { Dna, Eraser, Combine, Pointer, Download, Upload } from 'lucide-react';
 
 export function CellSelector() {
-    const interaction = useToolStore((state) => state.interaction);
-    const setToolGenesis = useToolStore((state) => state.setToolGenesis);
-    const setToolGenesisGlue = useToolStore((state) => state.setToolGenesisGlue);
-    const setToolGenesisTransplant = useToolStore((state) => state.setToolGenesisTransplant);
+    const {
+        activeToolId,
+        activeGenesisDna,
+        setActiveGenesisDna,
+        genesisMode,
+        setGenesisMode
+    } = useGlobalUIStore();
 
-    // Only show when in Genesis mode
-    if (!interaction.type.startsWith('GENESIS')) return null;
+    // Only show when in Genesis tool
+    if (activeToolId !== 'genesis') return null;
 
-    // Helper to determine active "sub-tool" or mode
-    // interaction.type could be 'GENESIS_IDLE' (Spawn), 'GENESIS_TRANSPLANT_IDLE' (Transplant), 'GENESIS_GLUING_*' (Glue)
+    const isSpawnMode = genesisMode === 'spawn';
+    const isGlueMode = genesisMode === 'glue';
+    const isTransplantMode = genesisMode === 'transplant';
 
-    const isSpawnMode = interaction.type === 'GENESIS_IDLE';
-    const isGlueMode = interaction.type.startsWith('GENESIS_GLUING');
-    const isTransplantMode = interaction.type.startsWith('GENESIS_TRANSPLANT') || interaction.type === 'GENESIS_DRAGGING' || interaction.type === 'GENESIS_HOLDING';
-
-    const activeCellId = interaction.type === 'GENESIS_IDLE' ? interaction.dna.id : null;
+    const activeCellId = activeGenesisDna ? activeGenesisDna.id : null;
 
     const cellTypes = getAllCellTypes();
 
     const handleSelectCell = (cellId: string) => {
         const pam = REGISTRY[cellId];
         if (pam) {
-            setToolGenesis(pam.dna);
+            setActiveGenesisDna(pam.dna);
         }
     };
 
     return (
-        <GlassPanel className="fixed left-28 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-4 z-40 max-h-[80vh] overflow-y-auto w-64 animate-in fade-in slide-in-from-left-4 duration-200">
+        <GlassPanel className="absolute left-28 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-4 z-40 max-h-[80vh] overflow-y-auto w-64 animate-in fade-in slide-in-from-left-4 duration-200 pointer-events-auto">
             <h3 className="text-white font-semibold flex items-center gap-2 pb-2 border-b border-gray-700 mb-2">
                 <Dna size={18} className="text-purple-400" />
                 Genesis Lab
@@ -47,10 +47,11 @@ export function CellSelector() {
 
             {/* Mode Switcher */}
             <div className="flex bg-gray-800 p-1 rounded-lg mb-4">
-                <button // Can't use GlassButton easily here due to custom layout/flex? actually we can but specific styles used
+                <button
                     onClick={() => {
                         const stem = REGISTRY['stem'];
-                        setToolGenesis(stem.dna);
+                        setActiveGenesisDna(stem.dna);
+                        setGenesisMode('spawn');
                     }}
                     className={cn(
                         "flex-1 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1",
@@ -61,7 +62,7 @@ export function CellSelector() {
                     <Dna size={14} /> Spawn
                 </button>
                 <button
-                    onClick={() => setToolGenesisTransplant()}
+                    onClick={() => setGenesisMode('transplant')}
                     className={cn(
                         "flex-1 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1",
                         isTransplantMode ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:text-white hover:bg-gray-700"
@@ -71,7 +72,7 @@ export function CellSelector() {
                     <Pointer size={14} /> Move
                 </button>
                 <button
-                    onClick={() => setToolGenesisGlue()}
+                    onClick={() => setGenesisMode('glue')}
                     className={cn(
                         "flex-1 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1",
                         isGlueMode ? "bg-green-600 text-white shadow-md" : "text-gray-400 hover:text-white hover:bg-gray-700"
@@ -140,11 +141,8 @@ export function CellSelector() {
                     <p className="text-xs text-gray-400 mb-2">
                         Click two adjacent cells to merge them into a group.
                     </p>
-                    {interaction.type === 'GENESIS_GLUING_TARGET' && (
-                        <div className="text-xs text-green-400 font-bold animate-pulse">
-                            Select second cell...
-                        </div>
-                    )}
+                    {/* We don't have local interaction state here to show prompt, unless we sync back from toolStore? 
+                        For now, just static instructions. */}
                 </GlassPanel>
             )}
         </GlassPanel>

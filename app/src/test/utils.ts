@@ -1,4 +1,4 @@
-import { useGridStore } from '@/store/grid-store';
+import { createGridStore, GridStore } from '@/store/grid-store';
 import { Cell, Particle } from '@/lib/vibe-core';
 import { hexToId } from '@/core/grid/hex';
 import { REGISTRY } from '@/pams/registry';
@@ -7,7 +7,7 @@ import { REGISTRY } from '@/pams/registry';
  * Resets and populates the global GridStore for testing.
  */
 export const scaffoldGrid = (cells: Cell[]) => {
-    const store = useGridStore;
+    const store = createGridStore();
 
     store.setState({
         cells: new Map(),
@@ -35,7 +35,7 @@ export const scaffoldGrid = (cells: Cell[]) => {
  * Simulates the game loop by advancing time in small increments (16ms).
  * This mimics the functionality of `CellTicker.tsx` headlessly.
  */
-export const advanceTimer = (store: typeof useGridStore, ms: number) => {
+export const advanceTimer = (store: GridStore, ms: number) => {
     const TICK_MS = 16;
     let remainingMs = ms;
 
@@ -43,7 +43,8 @@ export const advanceTimer = (store: typeof useGridStore, ms: number) => {
         const dtMs = Math.min(remainingMs, TICK_MS);
         const deltaTime = dtMs / 1000; // seconds
 
-        jest.advanceTimersByTime(dtMs);
+        // jest.advanceTimersByTime(dtMs); // Use if using fake timers
+        // For headless simulation without Jest timers, we just loop data.
 
         const state = store.getState();
         const gridStore = state; // alias for clarity
@@ -75,14 +76,14 @@ export const advanceTimer = (store: typeof useGridStore, ms: number) => {
 
             // Tick
             if (pamModule?.onTick) {
-                pamModule.onTick(cell, deltaTime);
+                pamModule.onTick(cell, deltaTime, gridStore);
             }
 
             // Signals
             if (cell.signals.length > 0 && pamModule?.onSignal) {
                 cell.signals.forEach((signal) => {
                     try {
-                        pamModule.onSignal!(cell, signal);
+                        pamModule.onSignal!(cell, signal, gridStore);
                     } catch (e) {
                         console.error(`Error processing signal for ${cell.id}`, e);
                     }
@@ -93,9 +94,6 @@ export const advanceTimer = (store: typeof useGridStore, ms: number) => {
             }
         });
 
-        // Increment internal tick counter if needed (mostly for debug)
-        // store.getState().incrementTick(); // simulation-store has this, not grid-store
-
         remainingMs -= dtMs;
     }
 };
@@ -103,7 +101,7 @@ export const advanceTimer = (store: typeof useGridStore, ms: number) => {
 /**
  * returns a deterministic snapshot of the grid state.
  */
-export const getGridSnapshot = (store: typeof useGridStore) => {
+export const getGridSnapshot = (store: GridStore) => {
     const state = store.getState();
 
     return {

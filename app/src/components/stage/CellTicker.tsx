@@ -6,9 +6,9 @@
 
 import { useEffect } from 'react';
 import { Particle } from '@/lib/vibe-core';
-import { useGridStore } from '@/store/grid-store';
-import { useSimulationStore } from '@/store/simulation-store';
-import { useToolStore } from '@/store/tool-store';
+import { useGridStoreApi } from '@/store/grid-store';
+import { useSimulationStoreApi } from '@/store/simulation-store';
+import { useToolStoreApi } from '@/store/tool-store';
 import { REGISTRY } from '@/pams/registry';
 
 // Map of PAM IDs to their modules
@@ -16,11 +16,9 @@ import { REGISTRY } from '@/pams/registry';
 const PAM_REGISTRY = REGISTRY;
 
 export function CellTicker() {
-    // No hooks here, we use direct store access in the loop to prevent re-renders restarting the loop
-
-    // We only subscribe to showParticles to force re-mount if needed (unlikely)
-    // But we don't want the loop to restart on speed changes.
-    // So we'll access state directly inside the loop.
+    const gridStore = useGridStoreApi();
+    const toolStore = useToolStoreApi();
+    const simStore = useSimulationStoreApi();
 
     useEffect(() => {
         let lastTime = Date.now();
@@ -28,122 +26,88 @@ export function CellTicker() {
 
         const tick = () => {
             try {
-                const state = useSimulationStore.getState();
+                const state = simStore.getState();
 
                 if (!state.isPlaying) {
-                    // If paused, just keep looping but don't advance physics
-                    lastTime = Date.now(); // Reset time so we don't jump when resuming
+                    lastTime = Date.now();
                     animationFrameId = requestAnimationFrame(tick);
                     return;
                 }
 
                 const now = Date.now();
-                let deltaTime = (now - lastTime) / 1000; // Convert to seconds
+                let deltaTime = (now - lastTime) / 1000;
                 lastTime = now;
 
-                // Apply simulation speed (Time Scale) ONLY if we are in Visualizer mode
-                // Apply simulation speed (Time Scale) IF Synaptic Vision is ON
-                // OR if we decide global speed should always apply? 
-                // User requirement says "speed modifier in synaptic vision mode is broken", implying it's linked.
-                // But logic-wise, speed should probably apply always if the controls are visible?
-                // For now, let's link it to the vision toggle as requested.
-                const view = useToolStore.getState().view;
+                const view = toolStore.getState().view;
 
-                // Allow speed mod if Synaptic Vision is ON *OR* if we just want global control.
-                // Previous logic was specific to 'visualizer' tool. 
-                // Given Sim Controls are now always visible, maybe speed should always apply?
-                // But the user specifically mentioned "in synaptic vision mode".
-                // Let's stick to: If Vision is ON, use speed. If OFF, run real-time (1.0).
                 if (view.showSynapticVision) {
                     deltaTime *= state.simulationSpeed;
                 } else {
                     deltaTime *= 1.0;
                 }
 
-                // debugging/stats
                 state.incrementTick();
 
-                const gridStore = useGridStore.getState();
+                const gridState = gridStore.getState();
 
-                // --- Particle Physics Step (Signal Travel) ---
-                if (gridStore.particles.length > 0) {
-                    gridStore.updateParticles((particles) => {
+                // --- Particle Physics Step ---
+                if (gridState.particles.length > 0) {
+                    gridState.updateParticles((particles) => {
                         const nextParticles: Particle[] = [];
-
                         particles.forEach(p => {
-                            // Move particle
                             p.progress += (deltaTime * p.speed);
-
                             if (p.progress >= 1.0) {
-                                // Arrival! Deliver signal to target
-                                // Use atomic delivery to prevent race conditions with stale state
-                                gridStore.deliverSignal(p.targetId, p.signal);
+                                gridState.deliverSignal(p.targetId, p.signal);
                             } else {
-                                // Keep flying
                                 nextParticles.push(p);
                             }
                         });
-
                         return nextParticles;
                     });
                 }
 
                 // --- Cellular Automata Step ---
-                // Use getAllCells to ensure we have fresh data
-                const cells = gridStore.getAllCells();
-
-                // Call onTick for each cell that has it
+                const cells = gridState.getAllCells();
                 cells.forEach((cell) => {
                     try {
                         const pamModule = PAM_REGISTRY[cell.dna.id];
                         if (pamModule?.onTick) {
-                            pamModule.onTick(cell, deltaTime);
+                            pamModule.onTick(cell, deltaTime, gridStore);
                         }
 
-                        // Process pending signals (reception)
                         if (cell.signals.length > 0 && pamModule?.onSignal) {
                             cell.signals.forEach((signal) => {
                                 try {
-                                    // Module-specific signal handling (safe)
-                                    pamModule!.onSignal!(cell, signal);
+                                    pamModule!.onSignal!(cell, signal, gridStore);
                                 } catch (signalError) {
-                                    console.error(`Error processing signal for cell ${cell.id} (${cell.dna.id}):`, signalError);
+                                    console.error(`Error processing signal for cell ${cell.id}:`, signalError);
                                 }
                             });
-
-                            // Clear processed signals
-                            gridStore.updateCell(cell.id, {
-                                signals: [],
-                            }, { skipHistory: true });
+                            gridState.updateCell(cell.id, { signals: [] }, { skipHistory: true });
                         }
                     } catch (cellError) {
-                        console.error(`Error processing tick for cell ${cell.id} (${cell.dna.id}):`, cellError);
+                        console.error(`Error processing tick for cell ${cell.id}:`, cellError);
                     }
                 });
 
                 if (state.tickCount % 60 === 0) {
-                    // console.log(`Tick ${state.tickCount}: ${cells.length} cells, ${gridStore.particles.length} particles.`);
+                    // console.log stats
                 }
 
                 animationFrameId = requestAnimationFrame(tick);
             } catch (e) {
                 console.error("Critical Ticker Error:", e);
-                // Recover from error by continuing loop? 
-                // Or stop? If we keep going we might spam errors.
-                // Let's stop to be safe if it's critical.
-                // animationFrameId = requestAnimationFrame(tick);
             }
         };
 
         animationFrameId = requestAnimationFrame(tick);
 
-        // Cleanup
         return () => {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
             }
         };
-    }, []); // Empty dependency array = runs once on mount. Loop reads store directly.
+    }, [gridStore, toolStore, simStore]);
 
     return null;
 }

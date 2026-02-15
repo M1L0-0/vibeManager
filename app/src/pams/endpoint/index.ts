@@ -1,5 +1,5 @@
 import { PamModule, Cell, Signal } from '@/lib/vibe-core';
-import { useGridStore } from '@/store/grid-store';
+// Removed global store import
 import { sseManager } from '@/lib/sse-client';
 import { createImpulse } from '@/core/grid/propagation';
 import { EndpointConfig } from './Config';
@@ -16,7 +16,7 @@ export const EndpointCell: PamModule = {
 
     configComponent: EndpointConfig,
 
-    onSpawn: (cell: Cell) => {
+    onSpawn: (cell: Cell, gridStore: any) => {
         // Initialize state
         cell.state.data = {
             range: 1, // Default to 1 hop (Local interaction)
@@ -29,8 +29,8 @@ export const EndpointCell: PamModule = {
             // Logic to handle external event
             // console.log(`📡 Endpoint ${cell.id} received external payload:`, payload);
 
-            // Fetch fresh cell state
-            const freshCell = useGridStore.getState().cells.get(cell.id);
+            // Fetch fresh cell state from INJECTED store
+            const freshCell = gridStore.getState().cells.get(cell.id);
             if (!freshCell) return;
 
             // Trigger Signal
@@ -40,15 +40,15 @@ export const EndpointCell: PamModule = {
                 color: payload.color || '#a855f7',
                 strength: payload.strength || 1.0,
                 range: payload.range // Allow external override of range
-            });
+            }, gridStore);
 
             // Visual Feedback
-            useGridStore.getState().updateCell(cell.id, {
+            gridStore.getState().updateCell(cell.id, {
                 state: { activity: 1.0 }
             }, { skipHistory: true });
 
             setTimeout(() => {
-                useGridStore.getState().updateCell(cell.id, {
+                gridStore.getState().updateCell(cell.id, {
                     state: { activity: 0 }
                 }, { skipHistory: true });
             }, 300);
@@ -61,7 +61,7 @@ export const EndpointCell: PamModule = {
         // Feature Request: Add onDestroy to PamModule.
     },
 
-    onSignal: (cell: Cell, signal: Signal) => {
+    onSignal: (cell: Cell, signal: Signal, gridStore: any) => {
         // Endpoint cells usually don't react to grid signals, they EMIT them.
         // But maybe they could forward them back to a webhook?
         // For now: do nothing.

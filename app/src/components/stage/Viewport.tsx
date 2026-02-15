@@ -4,13 +4,14 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import { HexGrid } from './HexGrid';
 import { SignalOverlay } from './SignalOverlay';
 import { NebulaBackground } from './NebulaBackground';
 import { SelectionOverlay } from './SelectionOverlay';
+import { PasteOverlay } from './PasteOverlay';
 import { DebugPanel } from '@/components/ui/DebugPanel';
-import { useToolStore } from '@/store/tool-store';
+import { useToolStore, useToolStoreApi } from '@/store/tool-store';
 import { pixelToHex } from '@/core/grid/hex';
 
 export function Viewport() {
@@ -40,7 +41,17 @@ export function Viewport() {
         interaction.type === 'GENESIS_HOLDING'
     );
 
+    // Store viewport offset during drag to resolve global coordinates correctly
+    const dragOffsetRef = useRef({ left: 0, top: 0 });
+
+    // Track click start to distinguish between click and drag
+    const clickStartRef = useRef({ x: 0, y: 0 });
+
     const handleMouseDown = (e: React.MouseEvent) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        dragOffsetRef.current = { left: rect.left, top: rect.top };
+        clickStartRef.current = { x: e.clientX, y: e.clientY };
+
         // Selection Logic
         if (interaction.type === 'SELECT_IDLE') {
             // Don't start selection immediately. Wait for threshold.
@@ -55,12 +66,15 @@ export function Viewport() {
 
     const selectionDragStartRef = useRef<{ x: number, y: number } | null>(null);
 
+    const toolStore = useToolStoreApi();
+
     // Use window listeners for drag to prevent UI interference and text selection
     useEffect(() => {
         const handleWindowMouseMove = (e: MouseEvent) => {
-            const currentInteraction = useToolStore.getState().interaction;
-            const currentPan = useToolStore.getState().view.pan;
-            const currentZoom = useToolStore.getState().view.zoom;
+            const currentInteraction = toolStore.getState().interaction;
+            const currentPan = toolStore.getState().view.pan;
+            const currentZoom = toolStore.getState().view.zoom;
+            const offset = dragOffsetRef.current;
 
             // Handle Selection Drag Start (Threshold)
             if (currentInteraction.type === 'SELECT_IDLE' && selectionDragStartRef.current) {
@@ -69,17 +83,25 @@ export function Viewport() {
                 const dy = e.clientY - start.y;
                 if (dx * dx + dy * dy > 25) { // 5px threshold
                     // Start dragging
-                    const worldX = (start.x - currentPan.x) / currentZoom;
-                    const worldY = (start.y - currentPan.y) / currentZoom;
+                    // Calculate World Point relative to Viewport
+                    const relativeX = start.x - offset.left;
+                    const relativeY = start.y - offset.top;
+
+                    const worldX = (relativeX - currentPan.x) / currentZoom;
+                    const worldY = (relativeY - currentPan.y) / currentZoom;
                     // Trigger start
-                    useToolStore.getState().startSelection({ x: worldX, y: worldY });
+                    toolStore.getState().startSelection({ x: worldX, y: worldY });
                     selectionDragStartRef.current = null; // Consumed
                 }
             }
 
             if (currentInteraction.type === 'SELECT_DRAGGING') {
-                const worldX = (e.clientX - currentPan.x) / currentZoom;
-                const worldY = (e.clientY - currentPan.y) / currentZoom;
+                const relativeX = e.clientX - offset.left;
+                const relativeY = e.clientY - offset.top;
+
+                const worldX = (relativeX - currentPan.x) / currentZoom;
+                const worldY = (relativeY - currentPan.y) / currentZoom;
+
                 updateSelection({ x: worldX, y: worldY });
                 return;
             }
@@ -91,7 +113,7 @@ export function Viewport() {
 
         const handleWindowMouseUp = () => {
             selectionDragStartRef.current = null; // Reset threshold trigger
-            const currentInteraction = useToolStore.getState().interaction;
+            const currentInteraction = toolStore.getState().interaction;
             if (currentInteraction.type === 'SELECT_DRAGGING') {
                 endSelection();
                 return;
@@ -128,7 +150,11 @@ export function Viewport() {
 
     const viewportRef = useRef<HTMLDivElement>(null);
 
-    // Handle Wheel (Zoom) via imperative listener to allow preventDefault (non-passive)
+    // Generate unique ID for this viewport's nebula pattern
+    const id = useId();
+    const nebulaPatternId = `nebula-pattern-${id.replace(/:/g, '')}`;
+
+    // Handle Wheel (Zoom)
     useEffect(() => {
         const el = viewportRef.current;
         if (!el) return;
@@ -136,13 +162,16 @@ export function Viewport() {
         const onWheel = (e: WheelEvent) => {
             e.preventDefault();
 
+            // Get bounding rect to calculate relative mouse position
+            const rect = el.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
             // Zoom-to-cursor logic
             const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
             const newZoom = Math.max(0.1, Math.min(8, zoom * zoomFactor));
 
-            const mouseX = e.clientX;
-            const mouseY = e.clientY;
-
+            // Pan calculation needs to maintain relative mouse position
             const newPanX = mouseX - ((mouseX - pan.x) / zoom) * newZoom;
             const newPanY = mouseY - ((mouseY - pan.y) / zoom) * newZoom;
 
@@ -151,10 +180,8 @@ export function Viewport() {
         };
 
         el.addEventListener('wheel', onWheel, { passive: false });
-        // Clean up
-        return () => {
-            el.removeEventListener('wheel', onWheel);
-        };
+        return () => el.removeEventListener('wheel', onWheel);
+
     }, [pan, zoom, setZoom, setPan]);
 
     // Hex Grid Dimensions (from hex.ts)
@@ -172,59 +199,54 @@ export function Viewport() {
 
     const showNebula = useToolStore((state) => state.view.showNebula);
 
+    // ...
+
     return (
         <div
             ref={viewportRef}
             className="infinite-viewport"
             style={{
-                width: '100vw',
-                height: '100vh',
+                width: '100%',
+                height: '100%',
                 overflow: 'hidden',
-                background: '#1a1a24', // Lighter, slightly purple-tinted dark background
+                background: '#1a1a24',
                 position: 'relative',
                 cursor: interaction.type === 'PASTE_IDLE' ? 'copy' : (canDragViewport ? (isDragging ? 'grabbing' : 'grab') : 'default'),
             }}
+            // ... (handleMouseDown logic needs updating too? handleMouseDown uses e.clientX directly which is global. 
+            // However, drag calculation e.clientX - pan.x works if pan is global offset? 
+            // No, Pan is purely transform offset. 
+            // If viewport is top-left 0,0, e.clientX is fine. 
+            // If viewport is offset, e.clientX includes that offset. 
+            // Dragging delta (movement) is fine regardless of offset. 
+            // Positioning grid clicks needs offset.)
+
             onMouseDown={handleMouseDown}
             onClick={(e) => {
-                // If dragging, ignore click (it was a drag end)
-                // We track this via a small heuristic or ref
-                // Actually `isDragging` state might process mouseUp before click fires?
-                // Click typically fires after MouseUp.
-                // But we set isDragging false on MouseUp. 
-                // We need to know if we *did* drag.
+                // Check if we dragged
+                const dx = e.clientX - clickStartRef.current.x;
+                const dy = e.clientY - clickStartRef.current.y;
+                if (dx * dx + dy * dy > 25) return; // Ignore click if moved > 5px
 
-                // Let's rely on simple delta check
-                if (Math.abs(e.clientX - (dragStart.x + pan.x)) > 5 || Math.abs(e.clientY - (dragStart.y + pan.y)) > 5) {
-                    // It was a drag
-                    return;
-                }
-
-                // If target is NOT the background (e.g. clicking a cell or UI), don't trigger background click
-                // But React events bubble.
-                // We can check e.target.
-                // If the user clicked a HexCell, that component handles the click event via `handleGridEvent`.
-                // However, does it stop propagation?
-                // If HexCell handler calls `handleGridEvent`, it doesn't stop native propagation unless we explicitly `e.stopPropagation()`.
-                // Let's assume HexCell needs to prevent this background click.
-                // NOTE: HexCell should call stopPropagation? 
-
-                // OR: We check defaultPrevented? 
-                if (e.defaultPrevented) return;
+                // ...
+                const rect = e.currentTarget.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
 
                 // Calculate Hex Coord
-                // World Point = (Screen - Pan) / Zoom
-                const worldX = (e.clientX - pan.x) / zoom;
-                const worldY = (e.clientY - pan.y) / zoom;
+                // World Point = (ScreenLocal - Pan) / Zoom
+                const worldX = (mouseX - pan.x) / zoom;
+                const worldY = (mouseY - pan.y) / zoom;
 
                 const coord = pixelToHex({ x: worldX, y: worldY });
 
-                useToolStore.getState().handleGridEvent({
+                toolStore.getState().handleGridEvent({
                     type: 'BACKGROUND_CLICK',
                     coord
                 });
             }}
         >
-            {/* Background Layers - Memoized to prevent re-renders unless Pan/Zoom changes */}
+            {/* Background Layers */}
             {showNebula && (
                 <NebulaBackground
                     pan={pan}
@@ -232,6 +254,7 @@ export function Viewport() {
                     PATTERN_W={PATTERN_W}
                     PATTERN_H={PATTERN_H}
                     HEX_SIZE={HEX_SIZE}
+                    patternId={nebulaPatternId}
                 />
             )}
 
@@ -249,6 +272,7 @@ export function Viewport() {
                 <HexGrid />
                 <SignalOverlay />
                 <SelectionOverlay />
+                <PasteOverlay viewportRef={viewportRef} />
             </div>
 
             {/* Info overlay */}
