@@ -11,6 +11,7 @@ import { useGridStore } from '@/store/grid-store';
 import { cn } from '@/lib/utils';
 import { useRef, useState } from 'react';
 import { useToolStore, useToolStoreApi } from '@/store/tool-store';
+import { useGridStoreApi } from '@/store/grid-store';
 import { useGlobalUIStore } from '@/store/global-ui-store';
 import { pixelToHex } from '@/core/grid/hex';
 import { DishLibraryModal } from './DishLibraryModal';
@@ -40,6 +41,10 @@ export function SimulationControls() {
     const selection = useToolStore(s => s.selection);
     const pan = useToolStore(state => state.view.pan);
     const zoom = useToolStore(state => state.view.zoom);
+
+    const toolStoreApi = useToolStoreApi();
+    const gridStoreApi = useGridStoreApi();
+
     const fileInputRef = useRef<HTMLInputElement>(null); // This ref is no longer used for upload, but kept for now if needed elsewhere.
 
     // Undo/Redo Keyboard Shortcuts
@@ -57,10 +62,14 @@ export function SimulationControls() {
                 e.preventDefault();
                 redo();
             }
+            // Check for Cmd+C / Ctrl+C
             if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
                 e.preventDefault();
+                const selection = toolStoreApi.getState().selection;
                 if (selection.size > 0) {
-                    copy(selection);
+                    // Copy from Local Grid -> Global Store
+                    const cells = gridStoreApi.getState().copy(selection);
+                    useGlobalUIStore.getState().setClipboard(cells);
                 }
             }
             if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
@@ -75,7 +84,7 @@ export function SimulationControls() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [undo, redo, copy, paste, selection, pan, zoom]);
+    }, [undo, redo, copy, paste, selection, pan, zoom, toolStoreApi, gridStoreApi]);
 
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
@@ -135,8 +144,6 @@ export function SimulationControls() {
     const toggleSynapticVision = useToolStore(s => s.toggleSynapticVision);
     const view = useToolStore(s => s.view);
     const showParticles = view.showSynapticVision;
-
-    const toolStore = useToolStoreApi();
 
     return (
         <>

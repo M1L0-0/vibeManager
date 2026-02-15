@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Cell } from '@/lib/vibe-core';
 
 interface GlobalUIState {
     activeToolId: string;
@@ -16,6 +17,10 @@ interface GlobalUIState {
 
     genesisMode: 'spawn' | 'transplant' | 'glue';
     setGenesisMode: (mode: 'spawn' | 'transplant' | 'glue') => void;
+
+    // Global Clipboard
+    clipboard: Cell[];
+    setClipboard: (clipboard: Cell[]) => void;
 }
 
 export const useGlobalUIStore = create<GlobalUIState>((set) => ({
@@ -33,4 +38,7 @@ export const useGlobalUIStore = create<GlobalUIState>((set) => ({
 
     genesisMode: 'spawn',
     setGenesisMode: (mode) => set({ genesisMode: mode }),
+
+    clipboard: [],
+    setClipboard: (clipboard) => set({ clipboard }),
 }));

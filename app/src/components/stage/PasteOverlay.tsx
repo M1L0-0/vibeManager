@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useGridStore } from '@/store/grid-store';
+import { useGlobalUIStore } from '@/store/global-ui-store';
 import { useToolStore } from '@/store/tool-store';
 import { hexToPixel, pixelToHex, HEX_SIZE, HexCoord } from '@/core/grid/hex';
 import React, { useEffect, useState } from 'react';
@@ -15,7 +14,7 @@ export function PasteOverlay({ viewportRef }: PasteOverlayProps) {
     const interaction = useToolStore((state) => state.interaction);
     const pan = useToolStore((state) => state.view.pan);
     const zoom = useToolStore((state) => state.view.zoom);
-    const clipboard = useGridStore((state) => state.clipboard);
+    const clipboard = useGlobalUIStore((state) => state.clipboard);
 
     const [hoverCoord, setHoverCoord] = useState<HexCoord | null>(null);
 

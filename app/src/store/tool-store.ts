@@ -5,6 +5,7 @@ import { PamDNA, Cell } from '@/lib/vibe-core';
 import { getPamModule } from '@/pams/registry';
 import { GridStore } from './grid-store';
 import { hexToPixel, pixelToHex, HexCoord, hexToId } from '@/core/grid/hex';
+import { useGlobalUIStore } from './global-ui-store';
 
 interface Point { x: number; y: number; }
 
@@ -408,7 +409,12 @@ export const createToolStore = (gridStore: GridStore) => createStore<ToolStoreSt
             case 'PASTE_IDLE': {
                 if (event.type === 'CLICK' || event.type === 'BACKGROUND_CLICK') {
                     const targetCoord = event.type === 'CLICK' ? event.cell.coord : event.coord;
-                    gridStore.getState().paste(targetCoord);
+                    // Get Global Clipboard
+                    // We need to import the store hook or access the state directly?
+                    // We can import the store implementation to get state.
+                    const clipboard = useGlobalUIStore.getState().clipboard;
+                    gridStore.getState().paste(targetCoord, clipboard);
+
                     // Stay in PASTE_IDLE for multi-paste/stamping
                     // set({ interaction: { type: 'HAND_IDLE' } });
                 }

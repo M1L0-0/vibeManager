@@ -115,11 +115,16 @@ export function WindowManager() {
                 direction={node.direction}
                 className="h-full w-full"
             >
-                <Panel>
+                <Panel minSize={10}>
                     {renderNode(node.first)}
                 </Panel>
-                <PanelResizeHandle className="bg-slate-800 hover:bg-blue-500 transition-colors w-1 h-1" />
-                <Panel>
+                <PanelResizeHandle
+                    className={`bg-slate-800 hover:bg-blue-500 transition-colors flex justify-center items-center ${node.direction === 'horizontal'
+                            ? 'w-1.5 h-full cursor-col-resize'
+                            : 'w-full h-1.5 cursor-row-resize'
+                        }`}
+                />
+                <Panel minSize={10}>
                     {renderNode(node.second)}
                 </Panel>
             </PanelGroup>

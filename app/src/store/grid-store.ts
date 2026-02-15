@@ -68,8 +68,8 @@ interface GridState {
     pushHistory: () => void;
 
     // Clipboard Actions
-    copy: (cellIds: Set<string>) => void;
-    paste: (targetCoord: HexCoord) => void;
+    copy: (cellIds: Set<string>) => Cell[];
+    paste: (targetCoord: HexCoord, clipboardData?: Cell[]) => void;
 }
 
 export type GridStore = ReturnType<typeof createGridStore>;
@@ -792,19 +792,23 @@ export const createGridStore = () => createStore<GridState>((set, get, api) => (
             const cell = state.cells.get(id);
             if (cell) clipboard.push(cell);
         });
-        set({ clipboard });
-        console.log(`📋 Copied ${clipboard.length} cells to clipboard`);
+        // set({ clipboard }); // Deprecated local clipboard
+        console.log(`📋 Copied ${clipboard.length} cells (returned)`);
+        return clipboard;
     },
 
-    paste: (targetCoord) => {
+    paste: (targetCoord, clipboardData) => {
         const state = get();
-        if (state.clipboard.length === 0) return;
+        // Use provided data or fallback to local (migration support)
+        const sourceClipboard = clipboardData || state.clipboard;
+
+        if (sourceClipboard.length === 0) return;
 
         get().pushHistory();
 
         // Calculate centroid or top-left of clipboard to determine offset
         let minQ = Infinity, minR = Infinity;
-        state.clipboard.forEach(cell => {
+        sourceClipboard.forEach(cell => {
             if (cell.coord.q < minQ) minQ = cell.coord.q;
             if (cell.coord.r < minR) minR = cell.coord.r;
         });
@@ -819,7 +823,7 @@ export const createGridStore = () => createStore<GridState>((set, get, api) => (
         // Map old group IDs to new group IDs to separate pasted groups from originals
         const groupMapping = new Map<string, string>();
 
-        state.clipboard.forEach(template => {
+        sourceClipboard.forEach(template => {
             const newQ = template.coord.q + qOffset;
             const newR = template.coord.r + rOffset;
             const newCoord = { q: newQ, r: newR };
@@ -872,7 +876,7 @@ export const createGridStore = () => createStore<GridState>((set, get, api) => (
         });
 
         set({ cells: newCells, groups: newGroups });
-        console.log(`📋 Pasted ${state.clipboard.length} cells at ${targetCoord.q},${targetCoord.r}`);
+        console.log(`📋 Pasted ${sourceClipboard.length} cells at ${targetCoord.q},${targetCoord.r}`);
     }
 })
 );
