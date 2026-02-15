@@ -89,17 +89,20 @@ export class DishFactory {
                 paused: false,
                 autoRestart: false,
                 loop: false,
-                lastTick: Date.now()
+                lastTick: Date.now(),
+                conductive: true // Standard Conductor
             };
             case 'pixel': return {
                 displayColor: '#333333',
                 baseColor: '#333333',
-                persistence: true
+                persistence: true,
+                conductive: true // Standard Conductor
             };
             case 'wave': return {
                 range: 5,
                 speedDelay: 0.1,
-                wireless: false
+                wireless: false,
+                conductive: true // Standard Conductor
             };
             case 'neuron': return {
                 operation: 'AND',

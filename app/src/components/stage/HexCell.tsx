@@ -5,7 +5,7 @@
 'use client';
 
 import { memo } from 'react';
-import { Cell } from '@/lib/vibe-core';
+import { Cell, PamDNA } from '@/lib/vibe-core';
 import { hexToPixel, HEX_SIZE } from '@/core/grid/hex';
 import { getPamModule } from '@/pams/registry';
 import { motion } from 'framer-motion';
@@ -163,6 +163,111 @@ export const HexCell = memo(function HexCell({
                 />
             )}
 
+            {/* DNA Storage Visual - Multi-Hex Grid */}
+            {/* DNA Storage Visual - Hex Spiral Grid */}
+            {(cell.state.data as any)?.dnaStorage?.length > 0 && (
+                <g>
+                    {((cell.state.data as any).dnaStorage as PamDNA[]).slice(0, 19).map((dna, index) => {
+                        let q = 0, r = 0;
+                        if (index > 0) {
+                            let ring = 1;
+                            let count = 0;
+                            while (true) {
+                                const ringSize = ring * 6;
+                                if (index <= count + ringSize) {
+                                    const remaining = index - count - 1;
+                                    const side = Math.floor(remaining / ring);
+                                    const step = remaining % ring;
+
+                                    // Start at corner for Ring R: q = -ring, r = ring (Direction 4 * ring)
+                                    // Wait, Direction 4 is (-1, 1). 
+                                    // Let's verify start position for standard spiral walk.
+                                    // Classic hex spiral: Center -> (0,0).
+                                    // Step 1: (0, -1)? No, (1, 0)?
+                                    // Let's map side 0 to Direction 5 (0,1)?
+                                    // Actually, let's use a known sequence generator logic inline to be safe.
+
+                                    // Custom Spiral Logic for visual packing:
+                                    // Start at (-ring, ring).
+                                    // Walk 6 sides.
+                                    // Side 0: Dir(0, -1)? No.
+                                    // Let's use the vectors that worked in my mind:
+                                    // Dirs: 5(0,1), 0(1,0), 1(1,-1), 2(0,-1), 3(-1,0), 4(-1,1)
+
+                                    const moveDirs = [
+                                        { q: 0, r: -1 },   // Side 0: Up
+                                        { q: 1, r: -1 },   // Side 1: Up Right
+                                        { q: 1, r: 0 },    // Side 2: Down Right
+                                        { q: 0, r: 1 },    // Side 3: Down
+                                        { q: -1, r: 1 },   // Side 4: Down Left
+                                        { q: -1, r: 0 }    // Side 5: Up Left
+                                    ];
+
+                                    // Start point: (-ring, ring)? That's Bottom-Left corner?
+                                    // Let's trace Side 0 from there. (-R, R) + (0, -1) -> (-R, R-1). Up.
+                                    // This seems to trace the Left edge upwards.
+                                    // Let's assume start is Bottom Left corner (-R, R).
+
+                                    let currentQ = -ring;
+                                    let currentR = ring;
+
+                                    // Special handle: If Side 0, we start walking UP.
+                                    // If Side 1, we start at Top Left corner (-R, 0)? 
+                                    // Wait. Side 0 walk R steps UP -> End at (-R, 0).
+                                    // Side 1 walk R steps UP-RIGHT -> End at (0, -R).
+                                    // Side 2 walk R steps DOWN-RIGHT -> End at (R, -R).
+                                    // Side 3 walk R steps DOWN -> End at (R, 0).
+                                    // Side 4 walk R steps DOWN-LEFT -> End at (0, R).
+                                    // Side 5 walk R steps UP-LEFT -> End at (-R, R). Back to start.
+
+                                    // This forms a closed loop. Correct.
+
+                                    // Apply full sides
+                                    for (let s = 0; s < side; s++) {
+                                        currentQ += moveDirs[s].q * ring;
+                                        currentR += moveDirs[s].r * ring;
+                                    }
+
+                                    // Apply steps
+                                    currentQ += moveDirs[side].q * (step + 1);
+                                    currentR += moveDirs[side].r * (step + 1);
+
+                                    q = currentQ;
+                                    r = currentR;
+                                    break;
+                                }
+                                count += ringSize;
+                                ring++;
+                            }
+                        }
+
+                        // Convert axial to pixel
+                        const scale = 0.18;
+                        const spread = HEX_SIZE * 0.19;
+                        const x = spread * (Math.sqrt(3) * q + (Math.sqrt(3) / 2) * r);
+                        const y = spread * ((3 / 2) * r);
+
+                        return (
+                            <motion.path
+                                key={`dna-${index}`}
+                                d={hexPath()}
+                                fill={dna.color}
+                                stroke="#ffffff"
+                                strokeWidth={2}
+                                initial={{ opacity: 0, scale: 0, x, y }}
+                                animate={{ opacity: 1, scale: scale, x, y }}
+                                transition={{
+                                    type: "spring",
+                                    stiffness: 300,
+                                    damping: 20,
+                                    delay: index * 0.02
+                                }}
+                            />
+                        );
+                    })}
+                </g>
+            )}
+
             {/* Generic Label (e.g. for Timer) */}
             {(() => {
                 const pam = getPamModule(cell.dna.id);
@@ -243,6 +348,16 @@ export const HexCell = memo(function HexCell({
     if (prev.cell.dna.id === 'timer') {
         if (prev.cell.state.data?.timeRemaining !== next.cell.state.data?.timeRemaining) return false;
         if ((prev.cell.state.data as any)?.isRunning !== (next.cell.state.data as any)?.isRunning) return false;
+    }
+
+    // Check DNA Storage (Generic)
+    const prevStorage = (prev.cell.state.data as any)?.dnaStorage;
+    const nextStorage = (next.cell.state.data as any)?.dnaStorage;
+    if (prevStorage !== nextStorage) {
+        if (prevStorage?.length !== nextStorage?.length) return false;
+        if (prevStorage?.length > 0 && nextStorage?.length > 0) {
+            if (prevStorage[0].color !== nextStorage[0].color) return false;
+        }
     }
 
     // Check connectedSides deep equality

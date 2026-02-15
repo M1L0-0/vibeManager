@@ -21,7 +21,8 @@ export const PixelCell: PamModule = {
                 ...cell.state,
                 data: {
                     ...cell.state.data,
-                    displayColor: '#333333'
+                    displayColor: '#333333',
+                    conductive: true // Enabled by default logic
                 }
             }
         });
@@ -122,12 +123,26 @@ export const PixelCell: PamModule = {
             }
         }, 400);
 
-        // 4. Propagation (Optional)
-        if (data.conductive) {
-            handleStandardWavePropagation(cell, signal, {
-                color: signalColor
-            });
-        }
+        // 4. Propagation
+        // Now handled by handleStandardWavePropagation checking 'conductive' internally
+        // But we still call it to trigger the potential propagation.
+        // If data.conductive is false, handleStandardWavePropagation will return false immediately.
+
+        // Fix: Force Omni-directional propagation if acting as a conductor
+        // We strip incoming directional constraints so the pixel acts like a wire node (hub),
+        // unless the user has explicitly set directions on THIS cell (handled by propagation logic priority).
+        const propagationSignal = {
+            ...signal,
+            payload: {
+                ...signal.payload,
+                allowedDirections: undefined
+            }
+        };
+
+        handleStandardWavePropagation(cell, propagationSignal, {
+            color: signalColor,
+            allowedDirections: [0, 1, 2, 3, 4, 5]
+        });
     },
 
     // Custom renderer hook?

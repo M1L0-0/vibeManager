@@ -4,6 +4,7 @@ import { X, Trash2, Upload, Download, Folder, User, Beaker } from 'lucide-react'
 import { useEffect, useState } from 'react';
 import { useSimulationStore } from '@/store/simulation-store';
 import { DishValidator } from '@/core/grid/validator';
+import { generateDishPreview } from '@/utils/dish-preview';
 
 interface DishLibraryModalProps {
     isOpen: boolean;
@@ -139,8 +140,8 @@ export function DishLibraryModal({ isOpen, onClose }: DishLibraryModalProps) {
                         <button
                             onClick={() => setActiveTab('Demos')}
                             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${activeTab === 'Demos'
-                                    ? 'bg-purple-500/20 text-purple-200 border border-purple-500/30'
-                                    : 'text-white/50 hover:bg-white/5 hover:text-white'
+                                ? 'bg-purple-500/20 text-purple-200 border border-purple-500/30'
+                                : 'text-white/50 hover:bg-white/5 hover:text-white'
                                 }`}
                         >
                             <Folder size={16} />
@@ -149,8 +150,8 @@ export function DishLibraryModal({ isOpen, onClose }: DishLibraryModalProps) {
                         <button
                             onClick={() => setActiveTab('User')}
                             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${activeTab === 'User'
-                                    ? 'bg-amber-500/20 text-amber-200 border border-amber-500/30'
-                                    : 'text-white/50 hover:bg-white/5 hover:text-white'
+                                ? 'bg-amber-500/20 text-amber-200 border border-amber-500/30'
+                                : 'text-white/50 hover:bg-white/5 hover:text-white'
                                 }`}
                         >
                             <User size={16} />
@@ -177,22 +178,28 @@ export function DishLibraryModal({ isOpen, onClose }: DishLibraryModalProps) {
                                         className="group relative bg-black/40 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-purple-500/50 hover:shadow-[0_0_20px_rgba(168,85,247,0.2)] transition-all duration-300"
                                     >
                                         {/* Thumbnail */}
-                                        <div className="aspect-[4/3] bg-black/50 relative overflow-hidden">
-                                            {dish.thumbnail ? (
-                                                <img
-                                                    src={dish.thumbnail}
-                                                    alt={dish.name}
-                                                    className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-110"
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-white/10 flex-col gap-2">
-                                                    <Beaker className="opacity-20" size={32} />
-                                                    <span className="text-xs">No Preview</span>
-                                                </div>
-                                            )}
-                                            {/* Overlay */}
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                                        </div>
+                                        {/* Thumbnail or Generated Preview */
+                                            (() => {
+                                                const previewSrc = dish.thumbnail || generateDishPreview(dish.data);
+                                                return (
+                                                    <div className="aspect-[4/3] bg-black/50 relative overflow-hidden">
+                                                        {previewSrc ? (
+                                                            <img
+                                                                src={previewSrc}
+                                                                alt={dish.name}
+                                                                className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-110"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-white/10 flex-col gap-2">
+                                                                <Beaker className="opacity-20" size={32} />
+                                                                <span className="text-xs">No Preview</span>
+                                                            </div>
+                                                        )}
+                                                        {/* Overlay */}
+                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                                                    </div>
+                                                );
+                                            })()}
 
                                         {/* Footer */}
                                         <div className="p-3 bg-white/5 border-t border-white/5">

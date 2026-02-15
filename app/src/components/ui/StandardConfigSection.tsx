@@ -58,6 +58,34 @@ export function StandardConfigSection({ cell, updateCell }: Props) {
                         />
                     </div>
 
+                    {/* Conductivity */}
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-gray-900 border border-gray-700 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div>
+                            <div className="text-sm font-medium text-gray-200">Conductive</div>
+                            <div className="text-xs text-gray-400">Pass signals to neighbors</div>
+                        </div>
+                        <input
+                            type="checkbox"
+                            checked={data.conductive !== false} // Default true
+                            onChange={(e) => updateData({ conductive: e.target.checked })}
+                            className="w-5 h-5 rounded border-gray-500 text-cyan-500 focus:ring-cyan-500/50 bg-gray-800 cursor-pointer"
+                        />
+                    </div>
+
+                    {/* Dominance */}
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-gray-900 border border-gray-700 animate-in fade-in slide-in-from-top-3 duration-300">
+                        <div>
+                            <div className="text-sm font-medium text-purple-400">Dominant</div>
+                            <div className="text-xs text-gray-400">Forces signal properties</div>
+                        </div>
+                        <input
+                            type="checkbox"
+                            checked={data.dominance === 'DOMINANT'} // Default Recessive
+                            onChange={(e) => updateData({ dominance: e.target.checked ? 'DOMINANT' : 'RECESSIVE' })}
+                            className="w-5 h-5 rounded border-gray-500 text-purple-600 focus:ring-purple-500/50 bg-gray-800 cursor-pointer"
+                        />
+                    </div>
+
                     {/* Signal Channel */}
                     <div>
                         <label className="text-xs text-gray-400 font-medium block mb-2 uppercase tracking-wide">

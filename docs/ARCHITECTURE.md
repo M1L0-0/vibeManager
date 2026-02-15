@@ -87,6 +87,23 @@ interface PamModule {
 5. **Arrival**: When particle reaches target, `onSignal` is called on the target cell.
 6. **Reaction**: The target cell processes the signal and may emit new ones.
 
+## External I/O System (VibeOps)
+
+### 1. Ingest API (Webhooks)
+- **Endpoint**: `POST /api/ingest/[cellId]`
+- **Purpose**: Allows external systems (GitHub, Cron, bash scripts) to trigger cells.
+- **Flow**:
+    1.  Request hits Next.js API Route.
+    2.  Route validates and broadcasts payload to `SSEManager` (server-side).
+    3.  `SSEManager` pushes event to all connected clients via `/api/events`.
+
+### 2. Client-Side Relay
+- **Component**: `SSEManager` (client singleton).
+- **Flow**:
+    1.  `EndpointCell` subscribes to `SSEManager` on spawn.
+    2.  `SSEManager` listens to `EventSource` from `/api/events`.
+    3.  On event, `EndpointCell` triggers a local Signal (Impulse).
+
 ## Genesis System
 The Genesis Tool is a multi-mode editor:
 1.  **Spawn**: Places new cells (Stem, Timer, Wave).

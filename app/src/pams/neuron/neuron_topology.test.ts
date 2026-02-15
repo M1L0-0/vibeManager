@@ -85,8 +85,8 @@ describe('Neuron Topology Integration', () => {
     test('Identical Timers trigger AND Neuron', () => {
         // 1. Activate both timers (Simulate Trigger Wave)
         // We bypass the trigger wave and just set them running to simulate perfect sync
-        timer1.state.data.isRunning = true;
-        timer2.state.data.isRunning = true;
+        timer1.state.data!.isRunning = true;
+        timer2.state.data!.isRunning = true;
 
         // 2. Advance Time (Tick)
         const TICK_DELTA = 100; // 100ms per tick
@@ -102,7 +102,7 @@ describe('Neuron Topology Integration', () => {
             TimerCell.onTick!(timer2, TICK_DELTA / 1000);
 
             // Check if timers fired
-            if (timer1.state.data.timeRemaining <= 0 && timer1.state.data.isRunning === false) {
+            if (timer1.state.data!.timeRemaining <= 0 && timer1.state.data!.isRunning === false) {
                 // Timer 1 Finished!
             }
         }
@@ -122,9 +122,9 @@ describe('Neuron Topology Integration', () => {
         NeuronCell.onSignal!(neuron, signal2);
 
         // Verify Buffer
-        expect(neuron.state.data._currentInputs).toBeUndefined(); // It's in 'data' actually.
+        expect((neuron.state.data as any)._currentInputs).toBeUndefined(); // It's in 'data' actually.
         // My mock updateCell implementation updates the object reference.
-        expect(neuron.state.data.currentInputs).toBe(2);
+        expect(neuron.state.data!.currentInputs).toBe(2);
 
         // 4. Tick Neuron (Evaluate)
         // Advance buffer window

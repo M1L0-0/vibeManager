@@ -68,7 +68,8 @@ describe('Neuron Cell Logic', () => {
                         currentInputs: 1
                     })
                 })
-            })
+            }),
+            { skipHistory: true }
         );
 
         // Update cell state to reflect the change
@@ -86,7 +87,8 @@ describe('Neuron Cell Logic', () => {
                         currentInputs: 2
                     })
                 })
-            })
+            }),
+            { skipHistory: true }
         );
     });
 
@@ -115,7 +117,8 @@ describe('Neuron Cell Logic', () => {
                         _inputBuffer: 1
                     })
                 })
-            })
+            }),
+            { skipHistory: true }
         );
     });
 

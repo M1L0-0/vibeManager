@@ -43,6 +43,13 @@ export function handleStandardWavePropagation(
         return false;
     }
 
+    // Check Conductivity (New Standard Property)
+    // Default to TRUE if undefined (Standard Cells are conductive by default)
+    // If explicitly false, block propagation.
+    if (cell.state.data?.conductive === false) {
+        return false;
+    }
+
     // Mark as seen
     // FORCE MUTATION on the fresh object reference to ensure synchronous consistency in this tick
     if (freshCell.state.seenSignals) {
@@ -56,11 +63,39 @@ export function handleStandardWavePropagation(
     newSeenSignals.add(signal.waveId);
 
     // Determine Directions
-    // Priority: Signal Payload > Local Config > Default (All 6)
-    const allowedDirections = signal.payload?.allowedDirections ||
-        cell.state.data?.directions ||
-        options.allowedDirections ||
-        [0, 1, 2, 3, 4, 5];
+    // Priority: 
+    // 1. Dominant Signal (Preserves Momentum/Payload Directions)
+    // 2. Signal Payload (Standard)
+    // 3. Local Config
+    // 4. Default (All 6)
+
+    // Physics: Dominance
+    const isLocalDominant = cell.state.data?.dominance === 'DOMINANT';
+    const isSignalDominant = signal.dominance === 'DOMINANT';
+    const nextDominance: 'DOMINANT' | 'RECESSIVE' = (isLocalDominant || isSignalDominant) ? 'DOMINANT' : 'RECESSIVE';
+
+    let allowedDirections = [0, 1, 2, 3, 4, 5];
+    let nextColor = options.color || signal.payload?.color;
+
+    if (isSignalDominant) {
+        // Dominant Signal: IMMUTABLE MOMENTUM
+        // Ignores local cell direction constraints.
+        // If the signal has specific payload directions (momentum), use them.
+        allowedDirections = signal.payload?.allowedDirections || [0, 1, 2, 3, 4, 5];
+        // Preserves original color (already set in NextColor from payload)
+    } else {
+        // Recessive Signal: MUTABLE
+        // Subject to local cell constraints
+        // Cell Directions take priority over Signal Momentum for Recessive signals.
+        allowedDirections = cell.state.data?.directions ||
+            signal.payload?.allowedDirections ||
+            options.allowedDirections ||
+            [0, 1, 2, 3, 4, 5];
+
+        // Subject to local color overrides (if cell has specific color)
+        // (Logic handled in propagateSignal or below if we want to enforce it here)
+        // For now, particle color is usually derived from signal payload or channel.
+    }
 
     // Determine Speed
     // 1. Local Customization (if signficantly different from default)
@@ -81,7 +116,8 @@ export function handleStandardWavePropagation(
     // Create next signal (inject speed)
     const nextSignal = {
         ...signal,
-        speed: propagateSpeed
+        speed: propagateSpeed,
+        dominance: nextDominance
     };
 
     // Dispatch propagation
@@ -130,7 +166,7 @@ export function handleStandardWavePropagation(
 
     useGridStore.getState().updateCell(cell.id, {
         state: {
-            ...cell.state,
+            ...freshCell.state, // Fix: Use fresh state to preserve previous sync updates (e.g. Pixel Color)
             ...updates
         }
     }, { skipHistory: true });

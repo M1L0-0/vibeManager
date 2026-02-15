@@ -58,9 +58,22 @@ export const WaveCell: PamModule = {
     onSignal: (cell: Cell, signal: Signal) => {
         // 1. Handle Wave Propagation (Pass-through)
         if (signal.type === 'wave') {
-            const propagated = handleStandardWavePropagation(cell, signal, {
+            // FIX: Wave Cell acts as a Repeater / Amplifier
+            // 1. Refresh Range (Boost signal back to full strength of THIS cell)
+            // 2. Reset Directions (Broadcast in cell's configured directions, ignoring incoming constraints)
+            const repeaterSignal = {
+                ...signal,
+                range: cell.state.data?.range || signal.range, // Use cell range if set
+                payload: {
+                    ...signal.payload,
+                    allowedDirections: cell.state.data?.directions || [0, 1, 2, 3, 4, 5] // Reset to Omni/Configured
+                }
+            };
+
+            const propagated = handleStandardWavePropagation(cell, repeaterSignal, {
                 wireless: cell.state.data?.wireless,
-                instant: cell.state.data?.instant
+                instant: cell.state.data?.instant,
+                allowedDirections: cell.state.data?.directions || [0, 1, 2, 3, 4, 5] // Explicit override for propagation check
             });
             if (propagated) {
                 // console.log(`🌊 Wave Cell ${cell.id}: Propagated wave ${signal.waveId}`);

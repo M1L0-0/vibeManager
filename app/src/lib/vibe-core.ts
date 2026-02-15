@@ -23,6 +23,7 @@ export interface Signal {
     sourceId: string;
     timestamp: number;
     waveId?: string; // For wave propagation - ensures once-only processing
+    dominance?: 'DOMINANT' | 'RECESSIVE'; // Physics Rule
     sourceGroupId?: string; // For group immunity
 }
 
@@ -62,6 +63,8 @@ export interface StandardCellData {
     // Identity & Display
     label?: string;          // Optional text label override
     description?: string;    // User notes/annotations
+    conductive?: boolean;    // If false, blocks signal propagation (insulator)
+    dominance?: 'DOMINANT' | 'RECESSIVE'; // Defines signal output characteristic
 
     // Signal Physics
     channel?: ChannelId;     // Chemical Channel ID
@@ -79,6 +82,9 @@ export interface StandardCellData {
     // Other common fields
     lastFired?: number;      // Timestamp of last activation
     command?: string;        // Signal command payload ('TRIGGER', etc.)
+
+    // DNA Features
+    dnaStorage?: PamDNA[];   // DNA bundles stored in this cell
 }
 
 /**

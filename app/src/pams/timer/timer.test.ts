@@ -31,8 +31,7 @@ describe('Timer Cell', () => {
 
     const createTimerCell = (id: string, isRunning: boolean = false): Cell => ({
         id,
-        q: 0,
-        r: 0,
+        coord: { q: 0, r: 0 },
         dna: TimerCell.dna,
         state: {
             energy: 100,
@@ -58,6 +57,7 @@ describe('Timer Cell', () => {
         waveId,
         sourceId: 'src-1',
         timestamp: Date.now(),
+        strength: 1,
         payload: { message: 'test' }
     });
 
@@ -81,7 +81,8 @@ describe('Timer Cell', () => {
                         isRunning: true
                     })
                 })
-            })
+            }),
+            { skipHistory: true }
         );
     });
 
@@ -115,7 +116,8 @@ describe('Timer Cell', () => {
                         isRunning: true
                     })
                 })
-            })
+            }),
+            { skipHistory: true }
         );
     });
 });

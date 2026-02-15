@@ -46,8 +46,10 @@ describe('Signal Propagation', () => {
         type: 'wave',
         waveId,
         sourceGroupId,
-        q: 0,
-        r: 0
+        strength: 1,
+        sourceId: 'src-1',
+        timestamp: Date.now(),
+        payload: {}
     });
 
     it('should propagate a fresh signal', () => {
@@ -107,9 +109,25 @@ describe('Signal Propagation', () => {
                     activity: 0.8,
                     seenSignals: expect.any(Set)
                 })
-            })
+            }),
+            { skipHistory: true }
         );
+
     });
+
+    it('should block propagation if conductive is false', () => {
+        const cell = createCell('0,0');
+        cell.state.data = { conductive: false }; // Insulator
+        const signal = createSignal('wave-1');
+
+        mockCells.set(cell.id, cell);
+
+        const result = handleStandardWavePropagation(cell, signal);
+
+        expect(result).toBe(false);
+        expect(mockPropagateSignal).not.toHaveBeenCalled();
+    });
+
     it('should deliver instantly to neighbors when instant is true', () => {
         const cell = createCell('0,0');
         const signal = createSignal('wave-instant');

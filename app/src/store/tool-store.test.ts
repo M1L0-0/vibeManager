@@ -24,7 +24,8 @@ describe('ToolStore FSM', () => {
                 showSynapticVision: false,
                 pan: { x: 0, y: 0 },
                 zoom: 1,
-                showNebula: true
+                showNebula: true,
+                showDebugOverlay: false
             }
         });
 

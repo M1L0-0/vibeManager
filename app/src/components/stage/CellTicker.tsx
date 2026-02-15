@@ -105,7 +105,7 @@ export function CellTicker() {
                             cell.signals.forEach((signal) => {
                                 try {
                                     // Module-specific signal handling (safe)
-                                    pamModule.onSignal(cell, signal);
+                                    pamModule!.onSignal!(cell, signal);
                                 } catch (signalError) {
                                     console.error(`Error processing signal for cell ${cell.id} (${cell.dna.id}):`, signalError);
                                 }
