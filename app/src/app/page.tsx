@@ -12,6 +12,7 @@ import { CellSelector } from '@/components/ui/CellSelector';
 import { SimulationControls } from '@/components/ui/SimulationControls';
 import { useGridStore } from '@/store/grid-store';
 import { GenomeInspector } from '@/components/ui/GenomeInspector';
+import { EndpointDashboard } from '@/components/ui/EndpointDashboard';
 import { useToolStore } from '@/store/tool-store';
 import { StemCell } from '@/pams/stem';
 import { TimerCell } from '@/pams/timer';
@@ -63,6 +64,7 @@ export default function Home() {
       <CellTicker />
       <ToolSelector />
       {isGenesis && <CellSelector />}
+      <EndpointDashboard />
       {/* SimulationControls always visible now for better UX, or could toggle with Vision */}
       <SimulationControls />
       <Viewport />

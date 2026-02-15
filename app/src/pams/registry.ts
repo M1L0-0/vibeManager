@@ -13,9 +13,12 @@ import { TimerCell } from '@/pams/timer';
 import { WaveCell } from '@/pams/wave';
 import { NeuronCell } from '@/pams/neuron';
 import { PixelCell } from '@/pams/pixel';
+import { EndpointCell } from '@/pams/endpoint';
 
 // Registry mapping cell ID to PAM module
 export const REGISTRY: Record<string, PamModule> = {
+    [EndpointCell.dna.id]: EndpointCell,
+
     [StemCell.dna.id]: StemCell,
     [TimerCell.dna.id]: TimerCell,
     [WaveCell.dna.id]: WaveCell,
