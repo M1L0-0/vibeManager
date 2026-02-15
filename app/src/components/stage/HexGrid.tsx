@@ -28,6 +28,9 @@ export const HexGrid = memo(function HexGrid() {
     // Only show selection highlights if we are in Selection Mode or Paste Mode (to prevent flashing)
     const showSelection = interaction.type.startsWith('SELECT') || interaction.type === 'PASTE_IDLE';
 
+    // Highlight Source for Link Tool
+    const linkSourceId = (interaction.type === 'LINK_SOURCE_SELECTED' && !interaction.isForeign) ? interaction.sourceId : null;
+
     // Viewport Culling
     const visibleCells = cells.filter(cell => {
         // Optimistic window size (client-side only for now)
@@ -109,7 +112,7 @@ export const HexGrid = memo(function HexGrid() {
                                 onMouseDown={handleCellMouseDown}
                                 onMouseUp={handleCellMouseUp}
                                 connectedSides={connectedSides}
-                                isSelected={showSelection && selection.has(cell.id)}
+                                isSelected={(showSelection && selection.has(cell.id)) || (linkSourceId === cell.id)}
                                 showDebugOverlay={view.showDebugOverlay}
                             />
                         );

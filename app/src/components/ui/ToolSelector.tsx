@@ -7,7 +7,7 @@
 import { useGlobalUIStore } from '@/store/global-ui-store';
 import { getAllCellTypes } from '@/pams/registry';
 import { GlassButton, GlassPanel } from './Glass';
-import { Hand, Search, Dna, Eye, Sparkles, Eraser, BoxSelect, Bug } from 'lucide-react';
+import { Hand, Search, Dna, Eye, Sparkles, Eraser, BoxSelect, Bug, Link } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function ToolSelector() {
@@ -25,6 +25,7 @@ export function ToolSelector() {
         { id: 'select', icon: BoxSelect, label: 'Selection Tool', description: 'Select area to Copy/Paste' },
         { id: 'inspect', icon: Search, label: 'Inspect Tool', description: 'View cell genome' },
         { id: 'genesis', icon: Dna, label: 'Genesis Tool', description: 'Create and arrange cells' },
+        { id: 'link', icon: Link, label: 'Link Tool', description: 'Connect Sender to Target' },
         { id: 'eraser', icon: Eraser, label: 'Eraser Tool', description: 'Remove cells' },
     ];
 

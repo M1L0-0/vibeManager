@@ -21,6 +21,10 @@ interface GlobalUIState {
     // Global Clipboard
     clipboard: Cell[];
     setClipboard: (clipboard: Cell[]) => void;
+
+    // Cross-Window Linking
+    linkSource: { windowId: string; cellId: string } | null;
+    setLinkSource: (source: { windowId: string; cellId: string } | null) => void;
 }
 
 export const useGlobalUIStore = create<GlobalUIState>((set) => ({
@@ -41,4 +45,8 @@ export const useGlobalUIStore = create<GlobalUIState>((set) => ({
 
     clipboard: [],
     setClipboard: (clipboard) => set({ clipboard }),
+
+    // Cross-Window Linking
+    linkSource: null,
+    setLinkSource: (source) => set({ linkSource: source }),
 }));

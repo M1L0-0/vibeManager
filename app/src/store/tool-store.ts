@@ -35,7 +35,10 @@ export type InteractionState =
     | { type: 'ERASER_IDLE' } // Erasing cells
     | { type: 'SELECT_IDLE' }
     | { type: 'SELECT_DRAGGING' }
-    | { type: 'PASTE_IDLE' };
+    | { type: 'PASTE_IDLE' }
+    | { type: 'LINK_IDLE' }
+    | { type: 'LINK_IDLE' }
+    | { type: 'LINK_SOURCE_SELECTED', sourceId: string, isForeign?: boolean };
 
 // --- Actions / Events ---
 
@@ -50,6 +53,9 @@ type GridEvent =
     | { type: 'BACKGROUND_CLICK', coord: { q: number; r: number } };
 
 export interface ToolStoreState {
+    windowId: string;
+    setWindowId: (id: string) => void;
+
     // Slices
     view: ViewState;
     interaction: InteractionState;
@@ -80,6 +86,8 @@ export interface ToolStoreState {
     setToolEraser: () => void;
     setToolSelect: () => void;
     setToolPaste: () => void;
+    setToolLink: () => void;
+    setToolLinkSource: (sourceId: string, isForeign?: boolean) => void;
 
     // Main Event Handler (The "Reducer")
     handleGridEvent: (event: GridEvent) => void;
@@ -91,6 +99,9 @@ export interface ToolStoreState {
 export type ToolStore = ReturnType<typeof createToolStore>;
 
 export const createToolStore = (gridStore: GridStore) => createStore<ToolStoreState>((set, get) => ({
+    windowId: 'default',
+    setWindowId: (windowId) => set({ windowId }),
+
     view: {
         showSynapticVision: true,
         showNebula: true,
@@ -130,6 +141,8 @@ export const createToolStore = (gridStore: GridStore) => createStore<ToolStoreSt
 
     // --- FSM Transitions ---
     setToolHand: () => set({ interaction: { type: 'HAND_IDLE' } }),
+    setToolLink: () => set({ interaction: { type: 'LINK_IDLE' } }),
+    setToolLinkSource: (sourceId, isForeign = false) => set({ interaction: { type: 'LINK_SOURCE_SELECTED', sourceId, isForeign } }),
     setToolInspect: () => set({ interaction: { type: 'INSPECT_IDLE' } }),
     setToolGenesis: (dna) => set({ interaction: { type: 'GENESIS_IDLE', dna } }),
     setToolGenesisGlue: () => set({ interaction: { type: 'GENESIS_GLUING_SOURCE' } }),
@@ -216,7 +229,8 @@ export const createToolStore = (gridStore: GridStore) => createStore<ToolStoreSt
     // --- Main Event Reducer ---
     handleGridEvent: (event) => {
         const state = get().interaction;
-        // Access provided store instance
+        const cellId = 'cell' in event ? event.cell.dna.id : 'N/A';
+        console.log('[ToolStore] Event:', event.type, cellId, 'State:', state.type);
 
         // Global Debug
         if (event.type === 'CLICK' || event.type === 'RIGHT_CLICK') {
@@ -417,6 +431,67 @@ export const createToolStore = (gridStore: GridStore) => createStore<ToolStoreSt
 
                     // Stay in PASTE_IDLE for multi-paste/stamping
                     // set({ interaction: { type: 'HAND_IDLE' } });
+                }
+                break;
+            }
+
+            case 'LINK_IDLE': {
+                if (event.type === 'CLICK') {
+                    // Check if cell is a valid source (Vesicle)
+                    if (event.cell.dna.id === 'vesicle') {
+                        // Set Global Link Source
+                        useGlobalUIStore.getState().setLinkSource({
+                            windowId: get().windowId,
+                            cellId: event.cell.id
+                        });
+
+                        set({ interaction: { type: 'LINK_SOURCE_SELECTED', sourceId: event.cell.id, isForeign: false } });
+                    } else {
+                        // Notify invalid source?
+                        console.log('Use Link Tool on a Vesicle first.');
+                    }
+                }
+                break;
+            }
+
+            case 'LINK_SOURCE_SELECTED': {
+                if (event.type === 'CLICK') {
+                    const { sourceId, isForeign } = state;
+                    const targetId = event.cell.id;
+
+                    // If it's a local link (same window), prevent linking to self
+                    if (!isForeign && sourceId === targetId) {
+                        // Cancel
+                        useGlobalUIStore.getState().setLinkSource(null);
+                        set({ interaction: { type: 'LINK_IDLE' } });
+                        return;
+                    }
+
+                    // Perform Link
+                    const targetCell = gridStore.getState().cells.get(targetId);
+
+                    if (targetCell) {
+                        if (targetCell.dna.id === 'endpoint') {
+                            const webhookUrl = `/api/ingest/${targetId}`;
+
+                            // Dispatch Global Event to update Source Cell (wherever it is)
+                            const updateEvent = new CustomEvent('vibe-link-cell', {
+                                detail: {
+                                    sourceId: sourceId,
+                                    url: webhookUrl
+                                }
+                            });
+                            window.dispatchEvent(updateEvent);
+
+                            console.log(`[LinkTool] Linked ${sourceId} to ${targetId}. Dispatched update for URL: ${webhookUrl}`);
+                        } else {
+                            console.log('[LinkTool] Target must be an Endpoint');
+                        }
+                    }
+
+                    // Reset
+                    useGlobalUIStore.getState().setLinkSource(null);
+                    set({ interaction: { type: 'LINK_IDLE' } });
                 }
                 break;
             }

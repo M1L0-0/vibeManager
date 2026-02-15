@@ -22,6 +22,7 @@ interface PetriDishProps {
 
 export function PetriDish({ windowId }: PetriDishProps) {
     const spawnCell = useGridStore((state) => state.spawnCell);
+    const gridStore = useGridStoreApi();
 
     // FSM Selectors
     const toolStore = useToolStoreApi(); // For direct access if needed, or just use selectors?
@@ -34,11 +35,16 @@ export function PetriDish({ windowId }: PetriDishProps) {
     const setToolEraser = useToolStore((state) => state.setToolEraser);
     const setToolGenesis = useToolStore((state) => state.setToolGenesis);
 
-    const activeToolId = useGlobalUIStore(s => s.activeToolId);
-    const { activeGenesisDna, genesisMode, showNebula, showDebugOverlay } = useGlobalUIStore();
+    const { activeToolId, linkSource, activeGenesisDna, genesisMode, showNebula, showDebugOverlay } = useGlobalUIStore();
     const setToolGenesisGlue = useToolStore((state) => state.setToolGenesisGlue);
     const setToolGenesisTransplant = useToolStore((state) => state.setToolGenesisTransplant);
     const setViewSettings = useToolStore((state) => state.setViewSettings);
+    const setStoreWindowId = useToolStore((state) => state.setWindowId);
+
+    // Init Window ID
+    useEffect(() => {
+        setStoreWindowId(windowId);
+    }, [windowId, setStoreWindowId]);
 
     // Sync Global Tool to Local Tool
     useEffect(() => {
@@ -56,13 +62,34 @@ export function PetriDish({ windowId }: PetriDishProps) {
             toolStore.getState().setToolPaste();
         }
 
+        if (activeToolId === 'link') {
+            if (linkSource) {
+                // If global source exists, ensure local state matches
+                if (interaction.type !== 'LINK_SOURCE_SELECTED' || interaction.sourceId !== linkSource.cellId) {
+                    const isForeign = linkSource.windowId !== windowId;
+                    toolStore.getState().setToolLinkSource?.(linkSource.cellId, isForeign);
+                }
+            } else {
+                // If no global source, ensure we are in idle
+                if (interaction.type !== 'LINK_IDLE') {
+                    toolStore.getState().setToolLink();
+                }
+            }
+        }
+
         if (activeToolId === 'genesis') {
             if (genesisMode === 'spawn') {
                 if (activeGenesisDna) {
-                    setToolGenesis(activeGenesisDna);
+                    if (interaction.type !== 'GENESIS_IDLE' || interaction.dna.id !== activeGenesisDna.id) {
+                        setToolGenesis(activeGenesisDna);
+                    }
                 } else {
                     const first = getAllCellTypes()[0];
-                    if (first) setToolGenesis(first.dna);
+                    if (first) {
+                        if (interaction.type !== 'GENESIS_IDLE' || interaction.dna.id !== first.dna.id) {
+                            setToolGenesis(first.dna);
+                        }
+                    }
                 }
             } else if (genesisMode === 'transplant' && !type.startsWith('GENESIS_TRANSPLANT')) {
                 setToolGenesisTransplant();
@@ -71,12 +98,39 @@ export function PetriDish({ windowId }: PetriDishProps) {
             }
         }
 
-    }, [activeToolId, interaction.type, setToolHand, setToolInspect, setToolEraser, setToolGenesis, setToolGenesisGlue, setToolGenesisTransplant, genesisMode, activeGenesisDna, toolStore]);
+    }, [activeToolId, linkSource, interaction.type, interaction, setToolHand, setToolInspect, setToolEraser, setToolGenesis, setToolGenesisGlue, setToolGenesisTransplant, genesisMode, activeGenesisDna, toolStore]);
 
     // Sync View Settings
     useEffect(() => {
         setViewSettings({ showNebula, showDebugOverlay });
     }, [showNebula, showDebugOverlay, setViewSettings]);
+
+    // Handle Cross-Window Link Updates
+    useEffect(() => {
+        const handleLinkUpdate = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            const { sourceId, url } = customEvent.detail;
+
+            // Check if this window owns the source cell
+            const cell = gridStore.getState().cells.get(sourceId);
+            if (cell) {
+                console.log(`[PetriDish] Received Link Update for ${sourceId}. Setting URL: ${url}`);
+                const currentData = cell.state.data || {};
+                gridStore.getState().updateCell(sourceId, {
+                    state: {
+                        ...cell.state,
+                        data: {
+                            ...currentData,
+                            url
+                        }
+                    }
+                });
+            }
+        };
+
+        window.addEventListener('vibe-link-cell', handleLinkUpdate);
+        return () => window.removeEventListener('vibe-link-cell', handleLinkUpdate);
+    }, [gridStore]);
 
     const isGenesis = interaction.type.startsWith('GENESIS');
     const inspectingCellId = interaction.type === 'INSPECT_IDLE' ? interaction.targetId : null;
@@ -85,8 +139,6 @@ export function PetriDish({ windowId }: PetriDishProps) {
     const inspectingCell = useGridStore((state) =>
         inspectingCellId ? state.cells.get(inspectingCellId) : undefined
     );
-
-    const gridStore = useGridStoreApi();
 
     useEffect(() => {
         // Only spawn if empty? Or just on mount?
