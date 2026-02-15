@@ -60,18 +60,32 @@ export const SignalOverlay = memo(function SignalOverlay() {
                     const y = start.y + (end.y - start.y) * p.progress;
 
                     return (
-                        <circle
-                            key={p.id}
-                            cx={x}
-                            cy={y}
-                            r={4}
-                            fill={p.color}
-                            stroke="white"
-                            strokeWidth={0}
-                            style={{
-                                filter: `drop-shadow(0 0 4px ${p.color}) drop-shadow(0 0 8px ${p.color})`
-                            }}
-                        />
+                        <g key={p.id}>
+                            <circle
+                                cx={x}
+                                cy={y}
+                                r={4}
+                                fill={p.color}
+                                stroke="white"
+                                strokeWidth={0}
+                                style={{
+                                    filter: `drop-shadow(0 0 4px ${p.color}) drop-shadow(0 0 8px ${p.color})`
+                                }}
+                            />
+                            {/* DNA Payload Indicator */}
+                            {p.signal.dnaPayload && (
+                                <rect
+                                    x={x - 3}
+                                    y={y - 3}
+                                    width={6}
+                                    height={6}
+                                    fill={p.signal.dnaPayload.color}
+                                    stroke="white"
+                                    strokeWidth={1}
+                                    transform={`rotate(45 ${x} ${y})`}
+                                />
+                            )}
+                        </g>
                     );
                 })
             }

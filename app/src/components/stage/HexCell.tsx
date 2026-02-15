@@ -265,6 +265,22 @@ export const HexCell = memo(function HexCell({
                             />
                         );
                     })}
+                    {/* Overflow Counter */}
+                    {((cell.state.data as any).dnaStorage?.length || 0) > 19 && (
+                        <g transform="translate(0, 1)">
+                            <circle r="10" fill="rgba(0,0,0,0.6)" />
+                            <text
+                                y="5"
+                                textAnchor="middle"
+                                fontSize="14"
+                                fontWeight="bold"
+                                fill="white"
+                                style={{ pointerEvents: 'none' }}
+                            >
+                                {((cell.state.data as any).dnaStorage?.length)}
+                            </text>
+                        </g>
+                    )}
                 </g>
             )}
 

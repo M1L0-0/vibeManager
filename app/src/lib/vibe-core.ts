@@ -20,6 +20,7 @@ export interface Signal {
     speed?: number; // Speed of propagation (units per second)
     command?: SignalCommand; // Specific instruction
     payload?: any;
+    dnaPayload?: PamDNA; // DNA bundle being transmitted
     sourceId: string;
     timestamp: number;
     waveId?: string; // For wave propagation - ensures once-only processing
@@ -51,6 +52,7 @@ export interface PamDNA {
     color: string; // Primary color for this PAM type
     icon?: string; // Lucide icon name
     description?: string;
+    payload?: any; // Arbitrary JSON payload
 }
 
 /**

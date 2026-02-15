@@ -27,7 +27,22 @@ export const NucleusCell: PamModule = {
     },
 
     onSignal: (cell: Cell, signal: Signal) => {
-        // Basic absorption for now
+        // DNA Absorption Logic
+        if (signal.dnaPayload) {
+            const currentStorage = (cell.state.data as any)?.dnaStorage || [];
+            const newStorage = [...currentStorage, signal.dnaPayload];
+
+            useGridStore.getState().updateCell(cell.id, {
+                state: {
+                    ...cell.state,
+                    activity: 1,
+                    data: {
+                        ...cell.state.data,
+                        dnaStorage: newStorage
+                    }
+                }
+            });
+        }
     },
 
     getLabel: (cell: Cell) => {

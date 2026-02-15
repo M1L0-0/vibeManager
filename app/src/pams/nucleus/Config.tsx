@@ -1,6 +1,44 @@
+import { useState } from 'react';
 import { Cell } from '@/lib/vibe-core';
 import { useGridStore } from '@/store/grid-store';
-import { motion } from 'framer-motion';
+import { ChevronRight, ChevronDown } from 'lucide-react';
+
+const DNAItem = ({ dna }: { dna: any }) => {
+    const [expanded, setExpanded] = useState(false);
+
+    return (
+        <div className="bg-black/20 rounded border border-white/5 overflow-hidden">
+            <div
+                className="flex items-center gap-2 p-2 cursor-pointer hover:bg-white/5 transition-colors"
+                onClick={() => setExpanded(!expanded)}
+            >
+                <div
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: dna.color }}
+                />
+                <div className="flex-1 min-w-0">
+                    <div className="text-xs text-white truncate font-medium">{dna.name}</div>
+                    <div className="text-[10px] text-gray-500 truncate">{dna.id}</div>
+                </div>
+                {expanded ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}
+            </div>
+
+            {expanded && (
+                <div className="p-2 border-t border-white/5 bg-black/40">
+                    {dna.description && (
+                        <div className="text-[10px] text-gray-400 mb-2 italic">
+                            {dna.description}
+                        </div>
+                    )}
+                    <div className="text-[10px] text-gray-500 font-mono mb-1">PAYLOAD:</div>
+                    <pre className="text-[10px] text-green-400 font-mono overflow-auto max-h-40 bg-black/50 p-1 rounded">
+                        {JSON.stringify(dna.payload || {}, null, 2)}
+                    </pre>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const NucleusConfig = ({ cell: initialCell, updateCell }: { cell: Cell; updateCell: (id: string, updates: Partial<Cell>) => void }) => {
     // Subscribe to the specific cell to ensure we always have fresh state
@@ -16,6 +54,11 @@ export const NucleusConfig = ({ cell: initialCell, updateCell }: { cell: Cell; u
             version: '1.0',
             color: `hsl(${Math.random() * 360}, 70%, 60%)`, // Random color for visibility
             description: 'A test DNA bundle injected for verification.',
+            payload: {
+                timestamp: Date.now(),
+                randomData: Math.floor(Math.random() * 1000),
+                status: 'verified'
+            }
         };
 
         const currentStorage = (cell.state.data as any)?.dnaStorage || [];
@@ -65,21 +108,12 @@ export const NucleusConfig = ({ cell: initialCell, updateCell }: { cell: Cell; u
 
             <div className="mt-4">
                 <h4 className="text-xs font-mono text-gray-400 mb-2">STORED BUNDLES ({storedDNA.length})</h4>
-                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                     {storedDNA.length === 0 ? (
                         <div className="text-xs text-gray-600 italic">Empty storage...</div>
                     ) : (
                         storedDNA.map((dna: any, idx: number) => (
-                            <div key={idx} className="flex items-center gap-2 bg-black/20 p-2 rounded border border-white/5">
-                                <div
-                                    className="w-3 h-3 rounded-full"
-                                    style={{ backgroundColor: dna.color }}
-                                />
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-xs text-white truncate">{dna.name}</div>
-                                    <div className="text-[10px] text-gray-500 truncate">{dna.id}</div>
-                                </div>
-                            </div>
+                            <DNAItem key={idx} dna={dna} />
                         ))
                     )}
                 </div>

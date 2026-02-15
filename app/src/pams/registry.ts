@@ -15,9 +15,12 @@ import { NeuronCell } from '@/pams/neuron';
 import { PixelCell } from '@/pams/pixel';
 import { EndpointCell } from '@/pams/endpoint';
 import { NucleusCell } from '@/pams/nucleus';
+import { RibosomeCell } from '@/pams/ribosome';
 
 // Registry mapping cell ID to PAM module
 export const REGISTRY: Record<string, PamModule> = {
+    [RibosomeCell.dna.id]: RibosomeCell,
+
     [NucleusCell.dna.id]: NucleusCell,
 
     [EndpointCell.dna.id]: EndpointCell,
