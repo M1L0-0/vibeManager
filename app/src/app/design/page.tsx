@@ -4,10 +4,14 @@ import { useState } from 'react';
 import {
     NeonCell, OrganicCell, GlassCell,
     CrystalCell, FrostedCell, HoloCell,
-    SketchCell, RetroCell, RuneCell, MechCell
+    SketchCell, RetroCell, RuneCell, MechCell,
+    DataStreamCell, WaveformCell, RadarCell, TerminalCell,
+    BrutalistCell, LiquidCell, EmitterCell, GlitchCell,
+    GlassStandard, GlassActive, GlassWarning, GlassDormant,
+    LabStandard, LabActive, LabWarning, LabDormant
 } from '@/components/design/CellVariants';
 import { NebulaBackground } from '@/components/stage/NebulaBackground';
-import { Network, Zap, Cpu, Activity, Box, Database, Sparkles, Hexagon, Layers, PenTool, Hash, Gem, Cog } from 'lucide-react';
+import { Network, Zap, Cpu, Activity, Box, Database, Sparkles, Hexagon, Layers, PenTool, Hash, Gem, Cog, Terminal, Radio, AlertTriangle, CloudRain, BarChart, Shield, Lock, Power } from 'lucide-react';
 
 export default function DesignPage() {
     const [active, setActive] = useState(false);
@@ -44,7 +48,45 @@ export default function DesignPage() {
                     </button>
                 </header>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-12 max-w-7xl mx-auto pb-20">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-12 max-w-7xl mx-auto pb-40">
+
+                    {/* Section 8: Sophisticated Glass (New) */}
+                    <section className="flex flex-col gap-8 items-center bg-white/5 p-8 rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl col-span-1 md:col-span-2 ring-1 ring-white/20">
+                        <h2 className="text-xl font-light tracking-[0.3em] uppercase text-white mb-4 flex items-center gap-4">
+                            <span className="h-[1px] w-12 bg-white/30"></span>
+                            Aero Glass OS
+                            <span className="h-[1px] w-12 bg-white/30"></span>
+                        </h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-16">
+                            <GlassStandard color="#38bdf8" label="Idle" icon={Box} isActive={active} />
+                            <GlassActive color="#10b981" label="Processing" icon={Cpu} isActive={active} />
+                            <GlassWarning color="#f59e0b" label="Blocked" icon={Lock} isActive={active} />
+                            <GlassDormant color="#64748b" label="Sleep" icon={Power} isActive={active} />
+                        </div>
+                        <p className="text-xs text-gray-400 mt-8 text-center max-w-lg font-light">
+                            Ultra-premium aesthetic using high-performance backdrop filters. Optimized for clarity and depth.
+                            Shows distinct states (Active, Warning, Dormant) while maintaining visual unity.
+                        </p>
+                    </section>
+
+                    {/* Section 9: Lab Glass (Sterile) - Comparison */}
+                    <section className="flex flex-col gap-8 items-center bg-white/10 p-8 rounded-2xl border border-white/20 backdrop-blur-xl shadow-2xl col-span-1 md:col-span-2 ring-1 ring-white/40">
+                        <h2 className="text-xl font-bold tracking-widest uppercase text-white mb-4 flex items-center gap-4">
+                            <Activity size={20} className="text-cyan-300" />
+                            STERILE LAB OS
+                            <Activity size={20} className="text-cyan-300" />
+                        </h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-16">
+                            <LabStandard color="#22d3ee" label="Culture" icon={Database} isActive={active} />
+                            <LabActive color="#34d399" label="Analysis" icon={Activity} isActive={active} />
+                            <LabWarning color="#fbbf24" label="Hazard" icon={AlertTriangle} isActive={active} />
+                            <LabDormant color="#94a3b8" label="Empty" icon={Box} isActive={active} />
+                        </div>
+                        <p className="text-xs text-gray-300 mt-8 text-center max-w-lg font-mono">
+                            Clinical precision. High-opacity white glass, crisp borders, and zero noise.
+                            Designed for high-visibility medical or laboratory interfaces.
+                        </p>
+                    </section>
 
                     {/* Section 1: Neon / Cyberpunk */}
                     <section className="flex flex-col gap-8 items-center bg-black/20 p-8 rounded-2xl border border-white/5 backdrop-blur-sm hover:bg-black/40 transition-colors">
@@ -115,6 +157,35 @@ export default function DesignPage() {
                             Radical stylistic departures. Hand-drawn, Voxel, Mystical, and Industrial themes.
                         </p>
                     </section>
+
+                    {/* Section 6: Data Systems (New) */}
+                    <section className="flex flex-col gap-8 items-center bg-black/20 p-8 rounded-2xl border border-white/5 backdrop-blur-sm hover:bg-black/40 transition-colors">
+                        <h2 className="text-xl font-mono text-green-500 mb-4 font-bold flex items-center gap-2"><Terminal size={20} /> ::DATA_SYS::</h2>
+                        <div className="grid grid-cols-2 gap-12">
+                            <DataStreamCell color="#22c55e" label="Matrix" icon={Database} isActive={active} />
+                            <WaveformCell color="#6366f1" label="Signal" icon={BarChart} isActive={active} />
+                            <RadarCell color="#10b981" label="Scan" icon={Radio} isActive={active} />
+                            <TerminalCell color="#cbd5e1" label="Bash" icon={Terminal} isActive={active} />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-8 text-center max-w-xs">
+                            UI-focused designs. CLI terminals, radar sweeps, and data waterfalls.
+                        </p>
+                    </section>
+
+                    {/* Section 7: Abstract / Modern Art (New) */}
+                    <section className="flex flex-col gap-8 items-center bg-black/20 p-8 rounded-2xl border border-white/5 backdrop-blur-sm hover:bg-black/40 transition-colors">
+                        <h2 className="text-xl font-sans text-red-500 mb-4 font-black uppercase flex items-center gap-2"><AlertTriangle size={20} /> Abstract_X</h2>
+                        <div className="grid grid-cols-2 gap-12">
+                            <BrutalistCell color="#f43f5e" label="Brutal" icon={Box} isActive={active} />
+                            <LiquidCell color="#3b82f6" label="Flux" icon={CloudRain} isActive={active} />
+                            <EmitterCell color="#eab308" label="Pulse" icon={Radio} isActive={active} />
+                            <GlitchCell color="#a855f7" label="Error" icon={AlertTriangle} isActive={active} />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-8 text-center max-w-xs">
+                            High-concept art styles. Brutalist aesthetics, metaball fluids, and glitch effects.
+                        </p>
+                    </section>
+
                 </div>
             </div>
         </div>
