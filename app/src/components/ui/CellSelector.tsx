@@ -104,10 +104,10 @@ export function CellSelector() {
                                 )}
                             >
                                 <div
-                                    className="w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform group-hover:scale-110"
+                                    className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 shrink-0"
                                     style={{ backgroundColor: pam.dna.color }}
                                 >
-                                    <IconComponent size={16} className="text-white mix-blend-plus-lighter" />
+                                    <IconComponent size={20} className="text-white mix-blend-plus-lighter" />
                                 </div>
                                 <div>
                                     <div className={cn("font-medium text-sm", isSelected ? "text-white" : "text-gray-300")}>
