@@ -137,3 +137,17 @@ Failure to use the central registry means new cell types will be "invisible" to 
 **Always import `REGISTRY` or `getAllCellTypes()` from `@/pams/registry`.**
 
 ---
+
+## 🎨 Designing Cell Visuals
+
+If you are creating index.tsx for your cell, you might want to explore the **Design Gallery** for inspiration.
+
+1.  Visit `http://localhost:3000/design` to see available visual styles.
+2.  Check `app/src/components/design/CellVariants.tsx` for copy-pasteable SVG/CSS implementations of:
+    -   **Neon**: Glowing, cyberpunk style.
+    -   **Organic**: Soft, biomimetic gradients.
+    -   **Glass**: Frosted glass effects.
+    -   **Retro**: Pixel-art style.
+    -   **Mech**: Industrial/Steampunk style.
+
+You can use these components as a base for your cell's `render` method or SVG structure.

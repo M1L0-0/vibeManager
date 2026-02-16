@@ -82,3 +82,44 @@ Key achievements:
 
 ---
 *End of Entry - Antigravity*
+
+# Project Journal
+
+**Date:** 2026-02-16
+**Collaborator:** Antigravity (AI Agent)
+
+## 1. Reflection on Progress
+We've shifted gears from core debugging to expanding the creative and interactive capabilities of `vibeManager`. The implementation of **Cross-Window Linking** marks a significant architectural milestone, allowing complex multi-window workflows. Visual polish also took center stage with the standardization of Genesis Lab icons and the creation of the **Design Gallery**, laying the groundwork for a highly customizable UI.
+
+Key milestones:
+- **Cross-Window Linking:** Successfully bridged independent browser windows using `GlobalUIStore` and custom `vibe-link-cell` events.
+- **Payload Integrity:** Fixed `VesicleCell` to respect dynamic signal payloads, enabling true data transmission.
+- **Design Gallery:** Pivoted from static image generation to building a live, interactive component gallery (`/design`) featuring 10 unique cell aesthetics (Neon, Glass, Organic, Mech, etc.).
+- **Visual Consistency:** Unified the Genesis Lab cell icons into a sleek, standardized squircle design.
+
+## 2. Wins
+*   **The "Live Gallery" Pivot:** When the image generation tool failed (503), we immediately pivoted to coding the design concepts directly in React as a "Live Gallery". This turned out to be a blessing in disguise—the result is interactive, copy-paste ready code that demonstrates the actual CSS/SVG rendering limits, which is far more valuable than a static PNG.
+*   **Global Event Bus:** The decision to use a global custom event (`vibe-link-cell`) for the Link Tool allowed us to decouple the `ToolStore` (logic) from the `HexGrid` (render) and `PetriDish` (orchestration) without complex prop drilling or context hell. It made cross-window syncing surprisingly straightforward.
+*   **Geometric Precision:** The new Genesis icons (`rounded-xl`, 40px) and the `NebulaBackground` integration in the gallery show a high attention to pixel-perfect detail that elevates the app's perceived quality.
+
+## 3. Bummers (Critical Assessment)
+*   **Tool Reliability:** The `generate_image` 503 error was a hard stop that wasted a cycle of planning. While the pivot was good, relying on external services for "inspiration" proved fragile.
+*   **Diffing Large Files:** I struggled to use `replace_file_content` on `CellVariants.tsx` and `DesignPage` because the file grew too large and complex for reliable diff matching. I wasted steps trying to patch it before switching to a full `write_to_file` overwrite. I should recognize "large file generation" mode sooner and skip the diffing attempts.
+
+## 4. Technical Lessons Learned
+*   **CSS Backdrop Filter:** Implementing "Glassmorphism" in SVG requires careful layering. Standard SVG filters are powerful but heavy; mixing SVG shapes with CSS `backdrop-filter` on container `div`s often yields better performance and easier styling for UI elements like these cells.
+*   **Payload Marshaling:** The `Vesicle` issue reinforced that data doesn't flow automatically. Explicitly checking `signal.payload` and falling back to configuration `body` gives us the flexibility of "Smart" (dynamic) vs "Dumb" (static) cells without changing the architecture.
+
+## 5. Environment / Tool Errors
+*   **`generate_image` 503:** "No capacity available for model gemini-3-pro-image".
+*   **`replace_file_content` Matching:** "target content not found" when trying to insert into a file I just wrote. This suggests I need to be more precise with my context anchors or just overwrite when doing major expansions.
+
+## 6. Feature Ideas (Future)
+*   **Global Theme Engine:** We have the designs (Neon, Retro, Mech)—now we need a "Theme Switcher" in the settings to apply these styles to the *actual* main grid, not just the gallery.
+*   **User Cell Designer:** A UI that exposes the parameters we tuned in `CellVariants` (hue, stroke width, internal shape) so users can build their own "Signature Style" for cells.
+
+## 7. Tool Development Ideas
+*   **Component Sandbox:** A robust "Storybook-lite" tool available to me (the agent) would be huge. Being able to render *just* a cell component in isolation and grab a screenshot would help verification without needing to build the full app or create a temporary route like `/design`.
+
+---
+*End of Entry - Antigravity*

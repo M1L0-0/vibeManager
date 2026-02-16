@@ -27,6 +27,12 @@ The genesis of the system comes with several pre-installed cell types ("PAMs").
 - **Features**:
     - **Directional Control**: Can be configured to emit only in specific directions (0-5).
 
+### 📦 Vesicle Cell (`vesicle`)
+- **Role**: Data Transport.
+- **Behavior**: Absorbs signals and carries their **Payload** (data) to a target cell.
+- **Features**:
+    - **Network Layer**: Can "tunnel" data through the grid without processing it.
+
 ## 3. Tools
 Located in the sidebar, these tools allow interaction with the grid.
 
@@ -34,6 +40,11 @@ Located in the sidebar, these tools allow interaction with the grid.
 - **Mode**: Interaction.
 - **Function**: Click cells to trigger their primary action (e.g., start a Timer).
 - **Secondary**: Drag to pan the grid.
+
+### 🔗 Link Tool (Chain)
+- **Mode**: Connection.
+- **Function**: Connects a **Source** cell to a **Target** cell.
+- **Scope**: Works across different browser windows (Cross-Window transmission).
 
 ### 🧬 Genesis Tool (DNA)
 - **Mode**: Creation.
@@ -48,6 +59,6 @@ Located in the sidebar, these tools allow interaction with the grid.
 - **Genome Inspector**: A popup UI to edit cell-specific parameters (Speed, loop settings, etc.).
 
 ## 4. Visualizations
-- **Signal Particles**: Animated dots traveling along grid edges to visualize data flow.
-- **Cell Activity**: Cells pulse visually when processing signals.
-- **Overlays**: Direction indicators show where signals will travel.
+- **Signal Particles**: Animated dots traveling along grid edges.
+- **Design Gallery**: A standalone lab (`/design`) for previewing Experimental cell styles (Neon, Glass, Mech).
+- **Nebula Background**: Dynamic, space-themed ambient background.

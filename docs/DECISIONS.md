@@ -37,5 +37,22 @@ This document records the "Why" behind architectural and product decisions.
 
 ### 2. Genesis Tool vs Inventory
 - **Context**: How to add cells.
-- **Decision**: **Genesis Tool** (God-mode pointer).
-- **Why**: Drag-and-drop from a sidebar (Inventory) is standard, but a "Brush" or "Wand" feel is more immersive for painting life onto the grid.
+### 3. State Management Evolution: Context + Zustand
+- **Context**: We need multiple independent grids (Split View) in one app.
+- **Decision**: **Instance-based Stores via React Context**.
+- **Why**: Singleton Zustand stores (global variables) prevent multiple independent simulations. Creating the store inside a Context Provider allows each "PetriDish" component to have its own isolated physics world.
+
+### 4. Cross-Window Linking: Global Event Bus
+- **Context**: Wiring a cell in Window A to a cell in Window B.
+- **Decision**: **`window.dispatchEvent` (Custom Events)**.
+- **Why**:
+    - **Zero Dependencies**: Native browser API.
+    - **Decoupling**: The GridStore doesn't need to know about the WindowManager. They just emit/listen for "Link" events.
+
+### 5. Cell Design: Live Gallery vs Static Mockups
+- **Context**: Designing new cell aesthetics (Neon, Glass, Organic).
+- **Decision**: **Live Component Gallery (`/design`)**.
+- **Why**:
+    - **Fidelity**: Static images don't show how CSS filters/blurs kill performance. Live code proves it works.
+    - **Reusable**: The "Mockup" code *is* the production code. Zero translation time.
+    - **Interactive**: We can test animations and interactions immediately.

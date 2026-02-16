@@ -20,9 +20,15 @@
 ## Future Roadmap 🗺️
 
 ### v1.10 (Immediate Next)
-- [ ] **Save/Load System**: Persist grids to local storage.
+- [x] **Save/Load System**: Persist grids to local storage.
+- [x] **Cross-Window Linking**: Connect cells across different browser windows.
 - [ ] **Audio Engine**: Synthesizer cells (AudioContext API).
 - [ ] **Logic Gates**: AND, OR, NOT cells for building computers.
+
+### v1.20 (Visual Overhaul)
+- [x] **Design Gallery**: Experimental lab for cell aesthetics (`/design`).
+- [ ] **Theme Engine**: Apply "Neon", "Glass", or "Retro" themes to the main grid.
+- [ ] **Squircle Icons**: Standardize all cell icons.
 
 ### v2.0 (The Scale Update)
 - [ ] **WebGL Rewrite**: Switch grid rendering to PIXI.js or R3F.

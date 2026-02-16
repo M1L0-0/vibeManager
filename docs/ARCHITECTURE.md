@@ -31,81 +31,49 @@ We use an **Axial Coordinate System** (`q`, `r`) for the grid. This allows for e
 
 ### 2. State Management Architecture
 
-We split state management into two primary stores to separate **World State** from **UI/Interaction State**.
+We use a **Hybrid Store Pattern** to support **Multi-Window Isolation**:
 
-#### A. Grid Store (The World)
-Manages the "physical" reality of the simulation.
-- **`cells`**: `Map<string, Cell>` - The biological entities.
-- **`particles`**: `Array<Particle>` - Flying signals.
-- **`physics`**: Movement rules and collision logic.
+#### A. Local Stores (Per-Window / Per-PetriDish)
+Each simulation window (or "PetriDish") has its own isolated instance of these stores, provided via React Context (`SimulationProvider`).
+- **`GridStore`**: The physics world (cells, signals).
+- **`ToolStore`**: The user interaction state (FSM).
+- **Why?**: Allows multiple independent simulations on the same screen (e.g., Split View).
 
-#### B. Tool Store (The Interface)
-Manages how the user interacts with the world, using a **Finite State Machine (FSM)**.
+#### B. Global Store (App-Wide)
+Manages state that must be shared across all windows.
+- **`GlobalUIStore`**: Manages the singleton `ToolSelector` and synchronization between windows.
+- **Why?**: The user expects the "Selected Tool" to be consistent across the app, even if they click into a different window.
 
-**Interaction State (`interaction`)**:
-Mutually exclusive modes that define what happens when you click.
-- `HAND_IDLE`: Default pointer. Clicks trigger cell actions.
-- `INSPECT_IDLE`: Clicks open the Genome Inspector.
-- `GENESIS_IDLE`: Spawns new cells (DNA selected).
-- `GENESIS_TRANSPLANT_IDLE`: Drag-and-drop or Click-to-move cells.
-- `GENESIS_DRAGGING`: Currently dragging a cell.
-- `GENESIS_HOLDING`: Holding a cell for click-to-place transplant.
-- `GENESIS_GLUING_SOURCE`: Selecting first cell for glue.
-- `GENESIS_GLUING_TARGET`: Selecting second cell for glue.
+### 3. Cross-Window Communication (The Vibe Bus)
+To enable interactions like **Linking Cells across Windows**, we use a custom Global Event Bus.
 
-**View State (`view`)**:
-Independent toggles that overlay information without changing interaction rules.
-- `showSynapticVision`: Toggles signal particle visibility (and speed controls).
-- (Future): `showHeatmap`, `showGridLines`.
+- **Event**: `vibe-link-cell`
+- **Payload**: `{ cellId, position, type: 'SOURCE' | 'TARGET' }`
+- **Mechanism**: `window.dispatchEvent` / `window.addEventListener`
+- **Flow**:
+    1. User clicks "Source" in Window A.
+    2. Window A dispatches `vibe-link-cell` (SOURCE).
+    3. Global store updates UI.
+    4. User clicks "Target" in Window B.
+    5. Window B dispatches `vibe-link-cell` (TARGET).
+    6. Both windows receive the visual cues.
 
-### 3. PAM Architecture (Programmable Active Modules)
+## PAM Architecture (Programmable Active Modules)
 Every cell in the grid is an instance of a **PAM**.
-- **DNA Catalog**: `app/src/pams/dna-catalog.ts` - separating metadata from logic to avoid circular deps.
-- **Modules**: `app/src/pams/*` - The behavior implementation (`onSignal`, `onTick`).
+- **DNA Catalog**: `app/src/pams/dna-catalog.ts`
+- **Modules**: `app/src/pams/*`
 
-**Structure**:
-```typescript
-interface PamModule {
-  dna: PamDNA;
-  onSpawn?: (cell) => void;
-  onSignal?: (cell, signal) => void;
-  onTick?: (cell, deltaTime) => void;
-  configComponent?: React.Component; // UI for "Genome Inspector"
-}
-```
-
-## Data Flow
-
-### Signal Cycle
-1. **Trigger**: A cell (e.g., Timer) or User Action creates a Signal.
-2. **Dispatch**: stored in `GridStore`.
-3. **Propagation Logic**: calculated in `propagation.ts`.
-    - Deduplication (seenSignals).
-    - Direction filtering.
-    - Speed calculation.
-4. **Visuals**: `Particles` are spawned to visualize the travel time.
-5. **Arrival**: When particle reaches target, `onSignal` is called on the target cell.
-6. **Reaction**: The target cell processes the signal and may emit new ones.
-
-## External I/O System (VibeOps)
-
-### 1. Ingest API (Webhooks)
-- **Endpoint**: `POST /api/ingest/[cellId]`
-- **Purpose**: Allows external systems (GitHub, Cron, bash scripts) to trigger cells.
-- **Flow**:
-    1.  Request hits Next.js API Route.
-    2.  Route validates and broadcasts payload to `SSEManager` (server-side).
-    3.  `SSEManager` pushes event to all connected clients via `/api/events`.
-
-### 2. Client-Side Relay
-- **Component**: `SSEManager` (client singleton).
-- **Flow**:
-    1.  `EndpointCell` subscribes to `SSEManager` on spawn.
-    2.  `SSEManager` listens to `EventSource` from `/api/events`.
-    3.  On event, `EndpointCell` triggers a local Signal (Impulse).
+**Vesicle / Network Cells**:
+Special cells like `vesicle` use the `signal.payload` to transmit real data (JSON) between cells, acting as the "Network Layer" of the OS.
 
 ## Genesis System
 The Genesis Tool is a multi-mode editor:
-1.  **Spawn**: Places new cells (Stem, Timer, Wave).
-2.  **Move (Transplant)**: Swaps two cells' positions + states. Supports both **Drag-and-Drop** and **Click-Pickup-Click-Drop**.
-3.  **Glue**: Merges two adjacent cells into a shared `groupId`, allowing them to share immunity and structure.
+1.  **Spawn**: Places new cells.
+2.  **Move (Transplant)**: Swaps positions.
+3.  **Glue**: Merges cells.
+4.  **Link**: Connects cells (including across windows) via the **Link Tool**.
+
+## Design Gallery (`/design`)
+A dedicated route for developing and showcasing cell aesthetics.
+- **Live Components**: Renders actual React components (`NeonCell`, `GlassCell`, etc.) instead of static images.
+- **Purpose**: A "Style Guide" ensuring visual consistency before merging into the main grid.
