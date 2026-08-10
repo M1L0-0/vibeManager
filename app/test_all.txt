@@ -1,0 +1,23 @@
+FAIL src/test/performance/simulation.bench.test.ts
+  Simulation Performance Benchmark
+    × BENCHMARK: 1000 Cells, 500 Ticks (3 ms)
+
+  ● Simulation Performance Benchmark › BENCHMARK: 1000 Cells, 500 Ticks
+
+    TypeError: _gridstore.useGridStore.setState is not a function
+
+    [0m [90m  7 |[39m [90m// Helper to reset store[39m
+     [90m  8 |[39m [36mconst[39m resetStore [33m=[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m  9 |[39m     useGridStore[33m.[39msetState({
+     [90m    |[39m                  [31m[1m^[22m[39m
+     [90m 10 |[39m         cells[33m:[39m [36mnew[39m [33mMap[39m()[33m,[39m
+     [90m 11 |[39m         groups[33m:[39m [36mnew[39m [33mMap[39m()[33m,[39m
+     [90m 12 |[39m         history[33m:[39m { past[33m:[39m [][33m,[39m future[33m:[39m [] }[33m,[39m[0m
+
+      at Object.setState (src/test/performance/simulation.bench.test.ts:9:18)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+Snapshots:   0 total
+Time:        1.181 s
+Ran all test suites matching src/test/performance/simulation.bench.test.ts.

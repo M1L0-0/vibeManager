@@ -4,20 +4,19 @@
 
 'use client';
 
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { Cell, PamDNA } from '@/lib/vibe-core';
-import { hexToPixel, HEX_SIZE } from '@/core/grid/hex';
+import { hexToPixel, HEX_SIZE, getNeighbors, hexToId } from '@/core/grid/hex';
 import { getPamModule } from '@/pams/registry';
 import { motion } from 'framer-motion';
-import { useEffect, useRef } from 'react';
 
 interface HexCellProps {
     cell: Cell;
+    groups: Map<string, Set<string>>;
     onClick: (cell: Cell) => void;
     onRightClick?: (cell: Cell) => void;
     onMouseDown?: (cell: Cell) => void;
     onMouseUp?: (cell: Cell) => void;
-    connectedSides?: boolean[]; // Array of 6 booleans, true if connected to group neighbor
     isSelected?: boolean;
     showDebugOverlay?: boolean;
 }
@@ -25,16 +24,32 @@ interface HexCellProps {
 // Memoized HexCell to prevent unnecessary re-renders of the entire grid
 export const HexCell = memo(function HexCell({
     cell,
+    groups,
     onClick,
     onRightClick,
     onMouseDown,
     onMouseUp,
-    connectedSides = [false, false, false, false, false, false],
     isSelected = false,
     showDebugOverlay = false
 }: HexCellProps) {
     const position = hexToPixel(cell.coord);
-    // Removed legacy local activity decay effect. Activity is now driven by store updates.
+
+    // Memoize connectedSides calculation
+    // This ensures that even if 'cell' changes (e.g. activity), we don't recalculate this unless
+    // the structure (groups) or position changes.
+    const connectedSides = useMemo(() => {
+        const groupId = cell.state.groupId;
+        if (!groupId) return [false, false, false, false, false, false];
+
+        const groupMembers = groups.get(groupId);
+        if (!groupMembers) return [false, false, false, false, false, false];
+
+        const neighborCoords = getNeighbors(cell.coord);
+        return neighborCoords.map(nCoord => {
+            const nId = hexToId(nCoord);
+            return groupMembers.has(nId);
+        });
+    }, [cell.coord, cell.state.groupId, groups]);
 
     // Generate hexagon path (pointy-top orientation)
     const hexPath = () => {
@@ -163,7 +178,6 @@ export const HexCell = memo(function HexCell({
                 />
             )}
 
-            {/* DNA Storage Visual - Multi-Hex Grid */}
             {/* DNA Storage Visual - Hex Spiral Grid */}
             {(cell.state.data as any)?.dnaStorage?.length > 0 && (
                 <g>
@@ -179,21 +193,6 @@ export const HexCell = memo(function HexCell({
                                     const side = Math.floor(remaining / ring);
                                     const step = remaining % ring;
 
-                                    // Start at corner for Ring R: q = -ring, r = ring (Direction 4 * ring)
-                                    // Wait, Direction 4 is (-1, 1). 
-                                    // Let's verify start position for standard spiral walk.
-                                    // Classic hex spiral: Center -> (0,0).
-                                    // Step 1: (0, -1)? No, (1, 0)?
-                                    // Let's map side 0 to Direction 5 (0,1)?
-                                    // Actually, let's use a known sequence generator logic inline to be safe.
-
-                                    // Custom Spiral Logic for visual packing:
-                                    // Start at (-ring, ring).
-                                    // Walk 6 sides.
-                                    // Side 0: Dir(0, -1)? No.
-                                    // Let's use the vectors that worked in my mind:
-                                    // Dirs: 5(0,1), 0(1,0), 1(1,-1), 2(0,-1), 3(-1,0), 4(-1,1)
-
                                     const moveDirs = [
                                         { q: 0, r: -1 },   // Side 0: Up
                                         { q: 1, r: -1 },   // Side 1: Up Right
@@ -203,24 +202,8 @@ export const HexCell = memo(function HexCell({
                                         { q: -1, r: 0 }    // Side 5: Up Left
                                     ];
 
-                                    // Start point: (-ring, ring)? That's Bottom-Left corner?
-                                    // Let's trace Side 0 from there. (-R, R) + (0, -1) -> (-R, R-1). Up.
-                                    // This seems to trace the Left edge upwards.
-                                    // Let's assume start is Bottom Left corner (-R, R).
-
                                     let currentQ = -ring;
                                     let currentR = ring;
-
-                                    // Special handle: If Side 0, we start walking UP.
-                                    // If Side 1, we start at Top Left corner (-R, 0)? 
-                                    // Wait. Side 0 walk R steps UP -> End at (-R, 0).
-                                    // Side 1 walk R steps UP-RIGHT -> End at (0, -R).
-                                    // Side 2 walk R steps DOWN-RIGHT -> End at (R, -R).
-                                    // Side 3 walk R steps DOWN -> End at (R, 0).
-                                    // Side 4 walk R steps DOWN-LEFT -> End at (0, R).
-                                    // Side 5 walk R steps UP-LEFT -> End at (-R, R). Back to start.
-
-                                    // This forms a closed loop. Correct.
 
                                     // Apply full sides
                                     for (let s = 0; s < side; s++) {
@@ -332,9 +315,6 @@ export const HexCell = memo(function HexCell({
                 </g>
             )}
 
-            {/* Group Indicator (Link Icon) - Removed as per user request for clean look, walls removal is enough */}
-
-
         </motion.g>
     );
 }, (prev, next) => {
@@ -349,6 +329,9 @@ export const HexCell = memo(function HexCell({
     if (prev.isSelected !== next.isSelected) return false; // Check selection
     if (prev.showDebugOverlay !== next.showDebugOverlay) return false;
 
+    // CRITICAL OPTIMIZATION: Check groups reference
+    if (prev.groups !== next.groups) return false;
+
     // Check custom render dependencies form PAM
     const pam = getPamModule(prev.cell.dna.id);
     if (pam?.getRenderDependencies) {
@@ -360,13 +343,13 @@ export const HexCell = memo(function HexCell({
         if (prevDeps.some((dep: any, i: number) => dep !== nextDeps[i])) return false;
     }
 
-    // Fallback/Legacy explicit check for Timer (can technically be removed now if all PAMs implement deps correctly, but keeping as safety)
+    // Fallback/Legacy explicit check for Timer
     if (prev.cell.dna.id === 'timer') {
         if (prev.cell.state.data?.timeRemaining !== next.cell.state.data?.timeRemaining) return false;
         if ((prev.cell.state.data as any)?.isRunning !== (next.cell.state.data as any)?.isRunning) return false;
     }
 
-    // Check DNA Storage (Generic)
+    // Check DNA Storage matches
     const prevStorage = (prev.cell.state.data as any)?.dnaStorage;
     const nextStorage = (next.cell.state.data as any)?.dnaStorage;
     if (prevStorage !== nextStorage) {
@@ -376,10 +359,5 @@ export const HexCell = memo(function HexCell({
         }
     }
 
-    // Check connectedSides deep equality
-    if (prev.connectedSides === next.connectedSides) return true;
-    if (!prev.connectedSides || !next.connectedSides) return false;
-    if (prev.connectedSides.length !== next.connectedSides.length) return false;
-
-    return prev.connectedSides.every((val, i) => val === next.connectedSides![i]);
+    return true;
 });

@@ -6,7 +6,7 @@
 
 import { Play, Pause, StepForward, Download, Eye, EyeOff, Save, FolderOpen, Undo, Redo } from 'lucide-react';
 import { useEffect } from 'react';
-import { useSimulationStore } from '@/store/simulation-store';
+import { useSimulationStore, useSimulationStoreApi } from '@/store/simulation-store';
 import { useGridStore } from '@/store/grid-store';
 import { cn } from '@/lib/utils';
 import { useRef, useState } from 'react';
@@ -92,6 +92,30 @@ export function SimulationControls() {
     }, [undo, redo, copy, paste, selection, pan, zoom, toolStoreApi, gridStoreApi]);
 
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+
+    const simStoreApi = useSimulationStoreApi();
+    const [tps, setTps] = useState(0);
+
+    useEffect(() => {
+        let lastTick = simStoreApi.getState().tickCount;
+        let lastTime = Date.now();
+
+        const interval = setInterval(() => {
+            const currentTick = simStoreApi.getState().tickCount;
+            const now = Date.now();
+            const delta = now - lastTime;
+
+            if (delta > 0) {
+                const diff = currentTick - lastTick;
+                setTps(Math.round((diff / delta) * 1000));
+            }
+
+            lastTick = currentTick;
+            lastTime = now;
+        }, 500); // Update every 500ms
+
+        return () => clearInterval(interval);
+    }, [simStoreApi]);
 
     const handleExport = () => {
         const jsonString = exportGrid();
@@ -183,9 +207,15 @@ export function SimulationControls() {
 
                 {/* Speed Control */}
                 <div className="flex items-center gap-2 px-2">
-                    <span className="text-xs font-mono text-white/50 w-8 text-right">
-                        {simulationSpeed.toFixed(1)}x
-                    </span>
+                    <div className="flex flex-col items-end leading-none">
+                        <span className="text-xs font-mono text-white/50">
+                            {simulationSpeed.toFixed(1)}x
+                        </span>
+                        <span className={cn("text-[10px] font-mono", tps < 30 && isPlaying ? "text-red-500" : "text-emerald-500")}>
+                            {tps} TPS
+                        </span>
+                    </div>
+
                     <input
                         type="range"
                         min="0.1"

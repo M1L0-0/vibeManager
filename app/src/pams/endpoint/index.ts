@@ -11,7 +11,7 @@ export const EndpointCell: PamModule = {
         version: '1.0.0',
         color: '#a855f7', // Purple/Vibe default
         icon: 'RadioReceiver', // Closest match
-        description: 'Fires signals when external webhooks are received via /api/ingest.',
+        description: 'Fires signals when external webhooks are received via /api/ingest. (Note: Disabled for Portfolio)',
     },
 
     configComponent: EndpointConfig,

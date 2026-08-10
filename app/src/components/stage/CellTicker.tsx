@@ -50,6 +50,9 @@ export function CellTicker() {
 
                 const gridState = gridStore.getState();
 
+                // START BATCH
+                gridState.startBatch();
+
                 // --- Particle Physics Step ---
                 if (gridState.particles.length > 0) {
                     gridState.updateParticles((particles) => {
@@ -75,6 +78,7 @@ export function CellTicker() {
                             pamModule.onTick(cell, deltaTime, gridStore);
                         }
 
+                        // Process Signals (Buffer -> Logic -> Clear)
                         if (cell.signals.length > 0 && pamModule?.onSignal) {
                             cell.signals.forEach((signal) => {
                                 try {
@@ -83,12 +87,16 @@ export function CellTicker() {
                                     console.error(`Error processing signal for cell ${cell.id}:`, signalError);
                                 }
                             });
+                            // Clear signals after processing
                             gridState.updateCell(cell.id, { signals: [] }, { skipHistory: true });
                         }
                     } catch (cellError) {
                         console.error(`Error processing tick for cell ${cell.id}:`, cellError);
                     }
                 });
+
+                // END BATCH (Commit all updates in one render)
+                gridState.endBatch();
 
                 if (state.tickCount % 60 === 0) {
                     // console.log stats

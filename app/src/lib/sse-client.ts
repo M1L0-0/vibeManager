@@ -18,34 +18,9 @@ class SSEClientManager {
     }
 
     private connect() {
-        if (this.eventSource || this.isConnecting) return;
-        this.isConnecting = true;
-
-        console.log('🔌 Connecting to SSE stream...');
-        this.eventSource = new EventSource('/api/events');
-
-        this.eventSource.onopen = () => {
-            console.log('✅ SSE Connected');
-            this.isConnecting = false;
-        };
-
-        this.eventSource.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                this.dispatch(data);
-            } catch (err) {
-                console.error('Failed to parse SSE message', err);
-            }
-        };
-
-        this.eventSource.onerror = (err) => {
-            console.error('❌ SSE Error', err);
-            this.disconnect();
-            // Retry in 5s
-            if (!this.reconnectTimer) {
-                this.reconnectTimer = setTimeout(() => this.connect(), 5000);
-            }
-        };
+        // Disabled for Vercel Portfolio deployment
+        console.log('🔌 SSE Stream disabled for Vercel portfolio deployment.');
+        return;
     }
 
     private disconnect() {

@@ -1,0 +1,24 @@
+  console.log
+    [Setup] Created 10000 cells in 12236.74ms
+
+      at Object.log (src/test/performance/simulation.bench.test.ts:36:17)
+
+  console.log
+    [Benchmark] 100 Ticks completed in 73462.91ms
+
+      at Object.log (src/test/performance/simulation.bench.test.ts:81:17)
+
+  console.log
+    [Benchmark] Average Tick: 734.63ms
+
+      at Object.log (src/test/performance/simulation.bench.test.ts:82:17)
+
+PASS src/test/performance/simulation.bench.test.ts (85.958 s)
+  Simulation Performance Benchmark
+    √ BENCHMARK: 10000 Cells, 100 Ticks (85732 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        86.88 s
+Ran all test suites matching src/test/performance/simulation.bench.test.ts.

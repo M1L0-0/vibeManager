@@ -91,27 +91,15 @@ export const HexGrid = memo(function HexGrid() {
             >
                 <g id="grid-container">
                     {visibleCells.map((cell) => {
-                        // Calculate connected sides for group rendering
-                        // OPTIMIZED: Use Group Index Set check instead of full Cell lookup
-                        const groupId = cell.state.groupId;
-                        const groupMembers = groupId ? groups.get(groupId) : null;
-
-                        const neighborCoords = getNeighbors(cell.coord);
-                        const connectedSides = neighborCoords.map(nCoord => {
-                            if (!groupId || !groupMembers) return false;
-                            const nId = hexToId(nCoord);
-                            return groupMembers.has(nId);
-                        });
-
                         return (
                             <HexCell
                                 key={cell.id}
                                 cell={cell}
+                                groups={groups}
                                 onClick={handleCellClick}
                                 onRightClick={handleCellRightClick}
                                 onMouseDown={handleCellMouseDown}
                                 onMouseUp={handleCellMouseUp}
-                                connectedSides={connectedSides}
                                 isSelected={(showSelection && selection.has(cell.id)) || (linkSourceId === cell.id)}
                                 showDebugOverlay={view.showDebugOverlay}
                             />
