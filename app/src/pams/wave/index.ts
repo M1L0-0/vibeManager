@@ -27,8 +27,8 @@ const onWaveClick = (cellArgument: Cell, gridStore: any) => {
     createImpulse(cell, 'wave', { message: 'Wave propagating...' }, {
         inheritLastFired: true,
         wireless: cell.state.data?.wireless,
-        instant: cell.state.data?.instant
-        // Color is optional, helper will fallback or we can defaults
+        instant: cell.state.data?.instant,
+        color: cell.state.data?.color
     }, gridStore);
 };
 
@@ -55,28 +55,28 @@ export const WaveCell: PamModule = {
     onClick: onWaveClick,
 
     onSignal: (cell: Cell, signal: Signal, gridStore: any) => {
-        // 1. Handle Wave Propagation (Pass-through)
+        // Handle Wave Propagation (Pass-through with Color Injection AND Range Amplification)
         if (signal.type === 'wave') {
-            const propagated = handleStandardWavePropagation(cell, signal, {
+            // Wave cells act as infinite repeaters/amplifiers. Force the signal range up to their intrinsic capacity.
+            const boostedSignal = {
+                ...signal,
+                range: Math.max(signal.range || 0, cell.state.data?.range || 10),
+                payload: {
+                    ...signal.payload,
+                    color: cell.state.data?.color || (signal.payload as any)?.color
+                }
+            };
+
+            const propagated = handleStandardWavePropagation(cell, boostedSignal, {
                 wireless: cell.state.data?.wireless,
                 instant: cell.state.data?.instant,
-                allowedDirections: cell.state.data?.directions || [0, 1, 2, 3, 4, 5] // Explicit override for propagation check
+                allowedDirections: cell.state.data?.directions || [0, 1, 2, 3, 4, 5],
+                color: cell.state.data?.color
             }, gridStore);
             if (propagated) {
                 // console.log(`🌊 Wave Cell ${cell.id}: Propagated wave ${signal.waveId}`);
             }
             return;
-        }
-
-        // 2. Handle External Triggers (e.g. from Timer, Button) -> Start NEW Wave
-        // If we receive a TRIGGER command (or timer-pulse), and we are NOT just passing a wave...
-        // FIXED: Re-enabled with strict checks
-        if (signal.command === 'TRIGGER' || signal.type === 'timer-pulse') {
-            // Prevent self-triggering via own wave (should be caught by type=wave check above, but for safety)
-            if (signal.id && cell.state.seenSignals?.has(signal.id)) return;
-
-            // Trigger manual activation (New Wave)
-            onWaveClick(cell, gridStore);
         }
     },
 };

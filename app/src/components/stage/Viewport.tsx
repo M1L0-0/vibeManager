@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useId } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { HexGrid } from './HexGrid';
 import { SignalOverlay } from './SignalOverlay';
 import { NebulaBackground } from './NebulaBackground';
@@ -150,9 +150,8 @@ export function Viewport() {
 
     const viewportRef = useRef<HTMLDivElement>(null);
 
-    // Generate unique ID for this viewport's nebula pattern
-    const id = useId();
-    const nebulaPatternId = `nebula-pattern-${id.replace(/:/g, '')}`;
+    // Use a static ID since there's only one viewport, preventing SSR hydration mismatches
+    const nebulaPatternId = 'nebula-pattern-main';
 
     // Handle Wheel (Zoom)
     useEffect(() => {

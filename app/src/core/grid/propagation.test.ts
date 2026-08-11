@@ -59,7 +59,7 @@ describe('Signal Propagation', () => {
         // Mock fresh cell retrieval
         mockCells.set(cell.id, cell);
 
-        const result = handleStandardWavePropagation(cell, signal);
+        const result = handleStandardWavePropagation(cell, signal, {}, useGridStore);
 
         expect(result).toBe(true);
         expect(mockPropagateSignal).toHaveBeenCalledTimes(1);
@@ -73,7 +73,7 @@ describe('Signal Propagation', () => {
 
         mockCells.set(cell.id, cell);
 
-        const result = handleStandardWavePropagation(cell, signal);
+        const result = handleStandardWavePropagation(cell, signal, {}, useGridStore);
 
         expect(result).toBe(false);
         expect(mockPropagateSignal).not.toHaveBeenCalled();
@@ -89,7 +89,7 @@ describe('Signal Propagation', () => {
 
         mockCells.set(cell.id, cell);
 
-        const result = handleStandardWavePropagation(cell, signal);
+        const result = handleStandardWavePropagation(cell, signal, {}, useGridStore);
 
         expect(result).toBe(false);
         expect(mockPropagateSignal).not.toHaveBeenCalled();
@@ -100,7 +100,7 @@ describe('Signal Propagation', () => {
         const signal = createSignal('wave-1');
         mockCells.set(cell.id, cell);
 
-        handleStandardWavePropagation(cell, signal);
+        handleStandardWavePropagation(cell, signal, {}, useGridStore);
 
         expect(mockUpdateCell).toHaveBeenCalledWith(
             '0,0',
@@ -122,7 +122,7 @@ describe('Signal Propagation', () => {
 
         mockCells.set(cell.id, cell);
 
-        const result = handleStandardWavePropagation(cell, signal);
+        const result = handleStandardWavePropagation(cell, signal, {}, useGridStore);
 
         expect(result).toBe(false);
         expect(mockPropagateSignal).not.toHaveBeenCalled();
@@ -157,7 +157,7 @@ describe('Signal Propagation', () => {
 
         const deliverSignalSpy = useGridStore.getState().deliverSignal;
 
-        const result = handleStandardWavePropagation(cell, signal, { instant: true });
+        const result = handleStandardWavePropagation(cell, signal, { instant: true }, useGridStore);
 
         expect(result).toBe(true);
         expect(deliverSignalSpy).toHaveBeenCalled();
@@ -183,7 +183,7 @@ describe('Signal Propagation', () => {
 
         const deliverSignalSpy = useGridStore.getState().deliverSignal;
 
-        createImpulse(cell, 'wave', {}, { instant: true, wireless: false });
+        createImpulse(cell, 'wave', {}, { instant: true, wireless: false }, useGridStore);
 
         expect(deliverSignalSpy).toHaveBeenCalledWith(neighbor.id, expect.any(Object));
         expect(mockPropagateSignal).not.toHaveBeenCalled();

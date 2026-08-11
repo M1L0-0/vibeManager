@@ -13,7 +13,7 @@ export const StemDNA: PamDNA = {
     version: '1.0.0',
     color: '#8b5cf6', // Purple
     icon: 'Circle',
-    description: 'The primordial cell - empty and full of potential',
+    description: 'The primordial cell. Transmits transient pulses and relays waves, but holds no active state.',
 };
 
 export const TimerDNA: PamDNA = {

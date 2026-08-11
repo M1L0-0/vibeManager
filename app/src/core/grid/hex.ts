@@ -17,7 +17,7 @@ export interface Point {
 export const HEX_SIZE = 40;
 
 // Hex directions (6 neighbors in axial coordinates)
-const HEX_DIRECTIONS: HexCoord[] = [
+export const HEX_DIRECTIONS: HexCoord[] = [
   { q: 1, r: 0 },
   { q: 1, r: -1 },
   { q: 0, r: -1 },

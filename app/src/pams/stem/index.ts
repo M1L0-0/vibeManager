@@ -1,6 +1,6 @@
 /**
- * Stem Cell - The default, empty cell module
- * Used for testing the grid system
+ * Stem Cell - The default, basic tissue cell module.
+ * Intentionally holds no persistent state (does not toggle). It acts purely as a structural relayer and transient pulse generator, flashing temporarily and passing signals along.
  */
 
 import { PamModule, Cell, Signal } from '@/lib/vibe-core';
@@ -36,7 +36,12 @@ export const StemCell: PamModule = {
         // Visual reaction
         // Handle wave propagation (Standard)
         if (signal.type === 'wave') {
-            const propagated = handleStandardWavePropagation(cell, signal, {
+            // CRITICAL FIX: Wires (Stem Cells) act as infinite repeaters. 
+            // If a localized pulse (range 1) arrives dead (range 0), revive it to range 1 so the wire can continue conducting.
+            // Absolute wave instances are strictly deduplicated by the physics engine's seenSignals, preventing echo loops.
+            const nextSignal = { ...signal, range: Math.max(signal.range || 0, 1) };
+
+            const propagated = handleStandardWavePropagation(cell, nextSignal, {
                 visualActivity: 1.0 // Flash fully
             }, gridStore);
             // handleStandardWavePropagation handles auto-reset of activity
@@ -48,7 +53,6 @@ export const StemCell: PamModule = {
         const store = gridStore.getState();
         store.updateCell(cell.id, {
             state: {
-                ...cell.state,
                 activity: 1.0,
             },
         }, { skipHistory: true });

@@ -1,4 +1,5 @@
 import { createDemo } from './dish-factory';
+import { masterpieceDish } from './masterpiece';
 
 // --- DEMO 1: STEM CELL (Basic Conductor) ---
 const demoStem = createDemo('Stem Cell', (f) => {
@@ -296,6 +297,14 @@ const demoNumbersReal = createDemo('Number Logic', (f) => {
 });
 
 export const DEFAULT_DISHES = [
+    {
+        id: 'demo-masterpiece',
+        name: 'Demo: The Masterpiece',
+        timestamp: Date.now(),
+        thumbnail: '',
+        data: masterpieceDish,
+        folder: 'Showcase'
+    },
     {
         id: 'demo-stem',
         name: 'Demo: Stem Cell',

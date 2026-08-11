@@ -1,5 +1,5 @@
 import { Cell, Signal } from '@/lib/vibe-core';
-import { getNeighbors, hexDistance } from '@/core/grid/hex';
+import { getNeighbors, hexDistance, idToHex, HEX_DIRECTIONS } from '@/core/grid/hex';
 
 interface PropagationOptions {
     defaultDelay?: number; // Default 0.1s
@@ -165,10 +165,7 @@ export function handleStandardWavePropagation(
     }
 
     gridStore.getState().updateCell(cell.id, {
-        state: {
-            ...freshCell.state, // Fix: Use fresh state to preserve previous sync updates (e.g. Pixel Color)
-            ...updates
-        }
+        state: updates
     }, { skipHistory: true });
 
     // Auto-reset activity after delay to allow visual pulse without storing every frame
@@ -265,6 +262,17 @@ export function createImpulse(
         }, { skipHistory: true });
     }, 300);
 
+    // Update State FIRST to ensure origin cell remembers the waveId before instant rebounds arrive
+    gridStore.getState().updateCell(cell.id, {
+        state: {
+            activity: 1.0,
+            seenSignals: currentSeen,
+            data: {
+                lastFired: options.inheritLastFired ? now : data?.lastFired
+            }
+        },
+    }, { skipHistory: true });
+
     // Instant Propagation Logic
     if (options.wireless && options.instant) {
         // Instant Wireless (God Mode)
@@ -327,17 +335,6 @@ export function createImpulse(
         wireless: options.wireless
     });
 
-    // Update State
-    gridStore.getState().updateCell(cell.id, {
-        state: {
-            activity: 1.0,
-            seenSignals: currentSeen,
-            data: {
-                ...cell.state.data,
-                lastFired: options.inheritLastFired ? now : data?.lastFired
-            }
-        },
-    }, { skipHistory: true });
     return waveId;
 }
 

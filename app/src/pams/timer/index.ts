@@ -206,7 +206,7 @@ export const TimerCell: PamModule = {
                     console.log(`⏱️ Timer Cell ${cell.id} RESTARTED by wave (Sync)`);
 
                     gridStore.getState().updateCell(cell.id, {
-                        state: { ...cell.state, data }
+                        state: { data }
                     }, { skipHistory: true });
                 }
             }

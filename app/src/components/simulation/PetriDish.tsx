@@ -6,6 +6,7 @@ import { SimulationControls } from '@/components/ui/SimulationControls';
 import { useGridStore, useGridStoreApi } from '@/store/grid-store';
 import { GenomeInspector } from '@/components/ui/GenomeInspector';
 import { EndpointDashboard } from '@/components/ui/EndpointDashboard';
+import { TutorialOverlay } from '@/components/ui/TutorialOverlay';
 import { useToolStore, useToolStoreApi } from '@/store/tool-store';
 import { useGlobalUIStore } from '@/store/global-ui-store';
 import { getAllCellTypes } from '@/pams/registry';
@@ -14,7 +15,7 @@ import { TimerCell } from '@/pams/timer';
 import { WaveCell } from '@/pams/wave';
 import { getHexesInRadius } from '@/core/grid/hex';
 import { CellTicker } from '@/components/stage/CellTicker';
-import { Cell } from '@/lib/vibe-core';
+import { masterpieceDish } from '@/seeds/masterpiece';
 
 interface PetriDishProps {
     windowId: string;
@@ -141,35 +142,20 @@ export function PetriDish({ windowId }: PetriDishProps) {
     );
 
     useEffect(() => {
-        // Only spawn if empty? Or just on mount?
-        // Since stores are fresh per instance, we can spawn on mount.
-        // Check if empty first to avoid double spawn in StrictMode
+        // One-time forceful load of the Masterpiece for portfolio users
+        const loadedMasterpiece = localStorage.getItem('vibeManager_loaded_star_v11');
+        if (!loadedMasterpiece) {
+            gridStore.getState().importGrid(masterpieceDish);
+            localStorage.setItem('vibeManager_loaded_star_v11', 'true');
+            return;
+        }
+
         const cells = gridStore.getState().cells;
         if (cells.size > 0) return;
 
-        // Spawn initial cells in a hexagonal pattern
-        const centerCoord = { q: 0, r: 0 };
-        const radius = 3;
-        const hexes = getHexesInRadius(centerCoord, radius);
-
-        // Replace one cell with a timer cell
-        const timerCoord = { q: 2, r: 1 };
-        // Replace another cell with a wave cell
-        const waveCoord = { q: -2, r: 1 };
-
-        hexes.forEach((coord) => {
-            // If this is the timer position, spawn a timer cell
-            if (coord.q === timerCoord.q && coord.r === timerCoord.r) {
-                spawnCell(coord, TimerCell.dna, TimerCell);
-            } else if (coord.q === waveCoord.q && coord.r === waveCoord.r) {
-                // Spawn a wave cell
-                spawnCell(coord, WaveCell.dna, WaveCell);
-            } else {
-                // Otherwise spawn a stem cell
-                spawnCell(coord, StemCell.dna, StemCell);
-            }
-        });
-    }, [spawnCell]);
+        // Fallback for completely empty manual clears
+        gridStore.getState().importGrid(masterpieceDish);
+    }, [gridStore]);
 
     return (
         <div className="relative w-full h-full overflow-hidden bg-black">
@@ -185,6 +171,8 @@ export function PetriDish({ windowId }: PetriDishProps) {
             <Viewport />
 
             {/* Global Overlays (Modals/Popups) */}
+            <TutorialOverlay />
+
             {inspectingCell && (
                 <GenomeInspector
                     cell={inspectingCell}

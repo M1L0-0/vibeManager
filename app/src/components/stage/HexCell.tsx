@@ -103,10 +103,10 @@ export const HexCell = memo(function HexCell({
             {/* Cell body - background only */}
             <motion.path
                 d={hexPath()}
-                fill={(cell.state.data as any)?.displayColor || cell.dna.color}
                 stroke="none"
                 initial={{ opacity: 0.8 }}
                 animate={{
+                    fill: (cell.state.data as any)?.displayColor || cell.dna.color,
                     opacity: 0.6 + cell.state.activity * 0.4,
                 }}
                 whileHover={{
@@ -181,6 +181,10 @@ export const HexCell = memo(function HexCell({
             {/* DNA Storage Visual - Hex Spiral Grid */}
             {(cell.state.data as any)?.dnaStorage?.length > 0 && (
                 <g>
+                    {/* DEBUG TELEMETRY: Show Set Size */}
+                    <text x="0" y="20" fill="white" fontSize="10" textAnchor="middle" style={{ pointerEvents: 'none', userSelect: 'none' }}>
+                        seen: {cell.state.seenSignals ? cell.state.seenSignals.size : 0}
+                    </text>
                     {((cell.state.data as any).dnaStorage as PamDNA[]).slice(0, 19).map((dna, index) => {
                         let q = 0, r = 0;
                         if (index > 0) {

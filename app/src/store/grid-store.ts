@@ -509,6 +509,10 @@ export const createGridStore = () => createStore<GridState>((set, get, api) => {
                         if (target.id === emitter.id) return;
                         if (target.state.groupId && target.state.groupId === sourceGroupId) return;
 
+                        if (signal.waveId && target.state.seenSignals?.has(signal.waveId)) {
+                            return;
+                        }
+
                         const dist = hexDistance(emitter.coord, target.coord);
                         if (dist > range || dist === 0) return;
 

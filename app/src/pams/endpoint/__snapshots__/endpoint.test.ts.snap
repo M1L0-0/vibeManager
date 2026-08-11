@@ -1,0 +1,23 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Endpoint Cell should initialize correctly: Initial State 1`] = `
+{
+  "cells": [
+    {
+      "coord": {
+        "q": 0,
+        "r": 0,
+      },
+      "id": "test-endpoint",
+      "signals": [],
+      "state": {
+        "activity": 0,
+        "energy": 100,
+        "lastFired": undefined,
+      },
+      "type": "endpoint",
+    },
+  ],
+  "particles": [],
+}
+`;

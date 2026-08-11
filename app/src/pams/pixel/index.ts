@@ -62,6 +62,15 @@ export const PixelCell: PamModule = {
             signalColor = CHANNELS[signal.channelId as ChannelId].color;
         }
 
+        // --- DIAGNOSTIC ALERT (Visual) ---
+        // If it somehow still resolves to white or gray, we force the cell label to display the error text
+        // so the user can see what arrived.
+        let debugLabel = undefined;
+        if (signalColor === '#ffffff' || signalColor === '#333333') {
+            debugLabel = 'GRAY BUG';
+            console.error("PIXEL GRAY BUG - FULL SIGNAL RECVD:", JSON.stringify(signal));
+        }
+
         // 2. Persistent vs Temporary Color
         const baseColor = data.baseColor || data.displayColor || '#333333';
 
@@ -87,13 +96,23 @@ export const PixelCell: PamModule = {
             displayColor: signalColor // Always flash to signal color initially
         };
 
+        if (debugLabel) {
+            updateData.label = debugLabel;
+        }
+
         if (persistence) {
             updateData.baseColor = signalColor; // Persist it
         }
 
+        console.log(`🎨 PixelCell [${cell.id}] ON_SIGNAL:`, {
+            incomingCommand: signal.command,
+            incomingColor: signalColor,
+            persistenceState: persistence,
+            resolvedFinalColor: updateData.displayColor
+        });
+
         store.updateCell(cell.id, {
             state: {
-                ...freshCell.state,
                 data: updateData,
                 activity: 1.0
             }
@@ -115,10 +134,7 @@ export const PixelCell: PamModule = {
                 }
 
                 currentStore.updateCell(cell.id, {
-                    state: {
-                        ...currentStore.cells.get(cell.id)!.state, // Merge safely
-                        ...updates
-                    }
+                    state: updates
                 }, { skipHistory: true });
             }
         }, 400);
@@ -133,6 +149,7 @@ export const PixelCell: PamModule = {
         // unless the user has explicitly set directions on THIS cell (handled by propagation logic priority).
         const propagationSignal = {
             ...signal,
+            range: Math.max(signal.range || 0, 1), // CRITICAL FIX: Ensure range > 0 so wire propagation continues
             payload: {
                 ...signal.payload,
                 allowedDirections: undefined
